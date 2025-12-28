@@ -4,115 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>بازی حکم آنلاین</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-body{font-family:'Segoe UI', Tahoma, sans-serif;background:linear-gradient(135deg,#1a5c2e 0%,#0d3d1a 50%,#0a2912 100%);min-height:100vh;padding:8px;color:#fff;font-size:14px;overflow-x:hidden}
-
-.card {
-  display: inline-flex;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 52px;
-  height: 75px;
-  background: linear-gradient(145deg, #ffffff 0%, #f8f8f8 50%, #e8e8e8 100%);
-  border-radius: 8px;
-  margin: 0 -12px;
-  position: relative;
-  box-shadow: 2px 3px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -1px 3px rgba(0,0,0,0.1);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid #ccc;
-  padding: 4px 5px;
-  font-family: 'Georgia', serif;
-  z-index: 1;
-}
-.card:hover { transform: translateY(-10px); z-index: 100; box-shadow: 0 12px 25px rgba(0,0,0,0.5); }
-.card.selected { transform: translateY(-18px); box-shadow: 0 15px 30px rgba(255,215,0,0.6), 0 0 20px rgba(255,215,0,0.4); border: 2px solid gold; z-index: 100; }
-.card .corner { text-align: center; line-height: 1; }
-.card .corner-top { align-self: flex-start; }
-.card .corner-bottom { align-self: flex-end; transform: rotate(180deg); }
-.card .rank { font-size: 16px; font-weight: bold; }
-.card .suit-small { font-size: 12px; }
-.card .center-suit { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; opacity: 0.9; }
-.card.red { color: #cc0000; }
-.card.black { color: #111; }
-
-.played-card-container { display: flex; flex-direction: column; align-items: center; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; min-width: 70px; }
-.played-card-container .player-name { font-size: 11px; margin-bottom: 5px; color: #ffd700; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
-.played-card-container .card { margin: 0; }
-.played-card-container.winner { background: linear-gradient(145deg, rgba(255,215,0,0.3), rgba(255,165,0,0.2)); border: 2px solid gold; animation: winnerGlow 0.5s ease infinite alternate; }
-@keyframes winnerGlow { from { box-shadow: 0 0 10px gold; } to { box-shadow: 0 0 25px gold; } }
-
-.box{background:rgba(0,0,0,0.35);padding:12px;margin:6px 0;border-radius:12px;backdrop-filter:blur(5px);border:1px solid rgba(255,255,255,0.1)}
-button{padding:10px 18px;margin:4px;font-size:14px;cursor:pointer;border-radius:8px;border:none;background:linear-gradient(145deg,#4CAF50,#388E3C);color:#fff;touch-action:manipulation;font-weight:bold;box-shadow:0 3px 10px rgba(0,0,0,0.3);transition:all 0.2s}
-button:hover{transform:translateY(-2px);box-shadow:0 5px 15px rgba(0,0,0,0.4)}
-button:active{transform:scale(0.95)}
-button:disabled{background:#555;box-shadow:none;transform:none}
-button.danger{background:linear-gradient(145deg,#e53935,#c62828)}
-input{padding:10px;font-size:14px;border-radius:8px;border:2px solid #4CAF50;margin:4px;width:120px;background:rgba(255,255,255,0.9);color:#333}
-input:focus{outline:none;border-color:#81C784;box-shadow:0 0 10px rgba(129,199,132,0.5)}
-
-#lobby,#game{max-width:100%;margin:0 auto}
-.player{padding:8px 12px;margin:4px;background:rgba(255,255,255,0.15);border-radius:8px;display:inline-block;font-size:12px;transition:all 0.3s}
-.player.ready{background:rgba(76,175,80,0.4)}
-.player.offline{opacity:0.5;border:1px dashed #999}
-.player.turn{background:rgba(255,235,59,0.4);border:2px solid #FFEB3B;animation:pulse 0.8s infinite}
-.player.leader{box-shadow:0 0 15px gold}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
-.team0{border-right:4px solid #ef5350}
-.team1{border-right:4px solid #29b6f6}
-
-#myHand{min-height:90px;padding:15px 20px;display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end}
-#played{min-height:100px;display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:12px;padding:10px}
-#dropZone{width:100%;min-height:120px;border:3px dashed rgba(255,255,255,0.25);border-radius:15px;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,0.2)}
-#info{font-size:15px;padding:12px;text-align:center;background:linear-gradient(145deg,rgba(255,255,255,0.95),rgba(240,240,240,0.95));color:#333;border-radius:10px;margin:6px 0;box-shadow:0 4px 15px rgba(0,0,0,0.2)}
-#propHistory{max-height:100px;overflow-y:auto;background:rgba(0,0,0,0.4);padding:10px;border-radius:8px;font-size:12px}
-.prop-item{padding:4px;border-bottom:1px solid rgba(255,255,255,0.15)}
-.prop-item.pass{color:#ef5350}
-.prop-item.call{color:#66bb6a}
-#scores{display:flex;justify-content:space-around;padding:10px;font-size:14px}
-.score-box{padding:8px 15px;border-radius:8px;background:rgba(0,0,0,0.3);font-weight:bold}
-#log{max-height:70px;overflow-y:auto;font-size:11px;background:rgba(0,0,0,0.4);padding:8px;border-radius:8px}
-
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:999;display:flex;justify-content:center;align-items:center;padding:10px}
-.modal{background:linear-gradient(145deg,#2d2d2d,#1a1a1a);color:#fff;padding:20px;border-radius:15px;width:100%;max-width:420px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.1);max-height:90vh;overflow-y:auto}
-.modal h3{margin-bottom:15px;font-size:20px;color:#ffd700}
-
-.mode-section{margin:15px 0;padding:15px;background:rgba(255,255,255,0.05);border-radius:10px}
-.mode-section h4{color:#aaa;margin-bottom:12px;font-size:14px}
-
-.mode-option{display:none}
-.mode-label{display:block;padding:12px 15px;margin:8px 0;background:linear-gradient(145deg,#444,#333);border-radius:10px;cursor:pointer;transition:all 0.3s;border:3px solid transparent;text-align:right}
-.mode-label:hover{background:linear-gradient(145deg,#555,#444)}
-.mode-option:checked + .mode-label{border-color:#ffd700;background:linear-gradient(145deg,#4a4a2a,#3a3a1a);box-shadow:0 0 15px rgba(255,215,0,0.3)}
-
-.mode-label .mode-title{font-size:16px;font-weight:bold;margin-bottom:5px;display:flex;align-items:center;gap:10px}
-.mode-label .mode-desc{font-size:11px;color:#999;line-height:1.4}
-.mode-label .mode-order{font-size:10px;color:#66bb6a;margin-top:5px;direction:ltr;text-align:center;background:rgba(0,0,0,0.3);padding:5px;border-radius:5px}
-
-.suit-selector{display:flex;justify-content:center;gap:8px;margin-top:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:8px}
-.suit-btn{width:50px;height:60px;font-size:28px;border-radius:8px;border:3px solid transparent;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center}
-.suit-btn.black{background:#fff;color:#111}
-.suit-btn.red{background:#fff;color:#cc0000}
-.suit-btn:hover{transform:scale(1.1)}
-.suit-btn.selected{border-color:#ffd700;box-shadow:0 0 15px rgba(255,215,0,0.5);transform:scale(1.1)}
-
-.confirm-section{margin-top:20px;padding-top:15px;border-top:1px solid rgba(255,255,255,0.2)}
-.confirm-section .selected-mode{background:rgba(255,215,0,0.2);padding:10px;border-radius:8px;margin-bottom:15px;font-size:14px}
-
-.result-modal{background:linear-gradient(145deg,#1a3a1a,#0d2810);border:2px solid gold}
-.result-modal h3{color:#ffd700;margin-bottom:20px}
-.result-cards{display:flex;justify-content:center;gap:15px;flex-wrap:wrap;margin:20px 0}
-.result-card-item{text-align:center;padding:10px;border-radius:10px;background:rgba(255,255,255,0.1)}
-.result-card-item.winner{background:linear-gradient(145deg,rgba(255,215,0,0.3),rgba(255,165,0,0.2));border:2px solid gold}
-.result-card-item .result-name{font-size:12px;margin-bottom:8px;color:#fff}
-.result-card-item .card{margin:0}
-.result-info{margin-top:20px;font-size:16px;color:#66bb6a}
-.countdown{margin-top:15px;font-size:13px;color:#999}
-
-.needs-suit{display:none}
-.mode-option:checked ~ .needs-suit{display:block}
-</style>
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/cards.css">
+<link rel="stylesheet" href="css/modals.css">
 </head>
 <body>
 
@@ -140,8 +34,20 @@ input:focus{outline:none;border-color:#81C784;box-shadow:0 0 10px rgba(129,199,1
 
   <div id="info"></div>
 
-  <div class="box">
-    <div id="gamePlayers" style="text-align:center"></div>
+  <!-- نمایش کارت‌های بازیکنان دیگر -->
+  <div id="otherPlayers">
+    <div id="playerTop" class="other-player top">
+      <div class="player-label"></div>
+      <div class="cards-back"></div>
+    </div>
+    <div id="playerLeft" class="other-player left">
+      <div class="player-label"></div>
+      <div class="cards-back"></div>
+    </div>
+    <div id="playerRight" class="other-player right">
+      <div class="player-label"></div>
+      <div class="cards-back"></div>
+    </div>
   </div>
 
   <div id="roundScoresBox" class="box" style="display:none;text-align:center">
@@ -155,7 +61,7 @@ input:focus{outline:none;border-color:#81C784;box-shadow:0 0 10px rgba(129,199,1
 
   <div class="box">
     <div id="dropZone">
-      <div id="played"><span style="color:#777">🎴 کارت‌های بازی شده</span></div>
+      <div id="played"><span style="color:#777">🎴 کارت را اینجا رها کنید</span></div>
     </div>
   </div>
 
@@ -177,7 +83,6 @@ input:focus{outline:none;border-color:#81C784;box-shadow:0 0 10px rgba(129,199,1
     <h3>🎯 انتخاب نوع بازی</h3>
     <p style="color:#aaa;margin-bottom:10px">حالت بازی و خال حکم را انتخاب کنید:</p>
     
-    <!-- حالت‌های با حکم -->
     <div class="mode-section">
       <h4>🎴 با حکم (برش می‌شود)</h4>
       
@@ -202,9 +107,8 @@ input:focus{outline:none;border-color:#81C784;box-shadow:0 0 10px rgba(129,199,1
         <div class="mode-order">قدرت: K → Q → ... → 2 → A</div>
       </label>
       
-      <!-- انتخاب خال برای حالت‌های با حکم -->
       <div id="suitSelectorWithTrump" class="suit-selector" style="display:none">
-        <span style="color:#aaa;font-size:12px;width:100%;margin-bottom:5px">خال حکم را انتخاب کنید:</span>
+        <span style="color:#aaa;font-size:12px;width:100%;margin-bottom:5px">خال حکم:</span>
         <button type="button" class="suit-btn black" data-suit="♠" onclick="selectSuit('♠')">♠</button>
         <button type="button" class="suit-btn red" data-suit="♥" onclick="selectSuit('♥')">♥</button>
         <button type="button" class="suit-btn red" data-suit="♦" onclick="selectSuit('♦')">♦</button>
@@ -212,10 +116,8 @@ input:focus{outline:none;border-color:#81C784;box-shadow:0 0 10px rgba(129,199,1
       </div>
     </div>
     
-    <!-- حالت بدون حکم -->
     <div class="mode-section">
       <h4>🚫 بدون حکم (برش نمی‌شود)</h4>
-      
       <input type="radio" name="gameMode" id="modeSars" value="sars" class="mode-option">
       <label for="modeSars" class="mode-label">
         <div class="mode-title">🔄 سَرس</div>
@@ -235,7 +137,7 @@ input:focus{outline:none;border-color:#81C784;box-shadow:0 0 10px rgba(129,199,1
   </div>
 </div>
 
-<!-- مودال تایید نهایی -->
+<!-- مودال تایید -->
 <div id="confirmModal" class="modal-overlay" style="display:none">
   <div class="modal">
     <h3>⚠️ تایید انتخاب</h3>
@@ -245,7 +147,7 @@ input:focus{outline:none;border-color:#81C784;box-shadow:0 0 10px rgba(129,199,1
       <p id="confirmModeDesc" style="font-size:12px;color:#aaa;margin-top:10px"></p>
     </div>
     <p style="font-size:12px;color:#f66;margin-bottom:15px">⚠️ پس از تایید، امکان تغییر وجود ندارد!</p>
-    <button onclick="finalConfirm()" style="background:linear-gradient(145deg,#4CAF50,#388E3C);width:45%">✅ بله، مطمئنم</button>
+    <button onclick="finalConfirm()" style="background:linear-gradient(145deg,#4CAF50,#388E3C);width:45%">✅ بله</button>
     <button onclick="cancelConfirm()" class="danger" style="width:45%">❌ انصراف</button>
   </div>
 </div>
@@ -261,402 +163,9 @@ input:focus{outline:none;border-color:#81C784;box-shadow:0 0 10px rgba(129,199,1
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script>
-const socket = io();
-let myIndex = -1, state = {}, selected = [], playerNames = [];
-let selectedSuit = null;
-let pendingMode = null;
-
-const MODE_NAMES = {
-  hokm: 'حکم',
-  sars: 'سَرس',
-  nars: 'نَرس',
-  asNars: 'آس نَرس'
-};
-
-const MODE_DESCRIPTIONS = {
-  hokm: 'حالت استاندارد با حکم - برش مجاز',
-  sars: 'بدون حکم - برش نمی‌شود',
-  nars: 'با حکم - دولو قوی‌ترین، آس ضعیف‌ترین',
-  asNars: 'با حکم - آس قوی‌ترین، شاه ضعیف‌ترین'
-};
-
-const MODE_NEEDS_SUIT = {
-  hokm: true,
-  nars: true,
-  asNars: true,
-  sars: false
-};
-
-function log(msg) {
-  const l = document.getElementById('log');
-  l.innerHTML = `<div>📌 ${msg}</div>` + l.innerHTML;
-  if (l.children.length > 20) l.removeChild(l.lastChild);
-}
-
-socket.on('log', d => log(d.msg));
-
-function joinRoom() {
-  const name = document.getElementById('name').value.trim();
-  const room = document.getElementById('room').value.trim();
-  if(!name || !room) return alert('نام و کد اتاق الزامی است');
-  socket.emit('join', {code: room, name});
-}
-
-socket.on('joined', d => {
-  myIndex = d.index;
-  document.getElementById('playerList').style.display = 'block';
-  if(d.isRejoin) {
-     document.getElementById('readyBtn').disabled = true; 
-     log('اتصال مجدد برقرار شد');
-  }
-});
-
-socket.on('updatePlayerList', ps => {
-  playerNames = ps.map(p => p.name);
-  let h = ps.map((p, i) => {
-      let status = '';
-      if(!p.connected) status = ' 📵';
-      else if(p.ready) status = ' ✅';
-      
-      let cls = 'player ' + (i%2==0 ? 'team0' : 'team1');
-      if(!p.connected) cls += ' offline';
-      else if(p.ready) cls += ' ready';
-      
-      return `<div class="${cls}">${i+1}. ${p.name}${i===myIndex?' (شما)':''}${status}</div>`;
-  }).join('');
-  document.getElementById('players').innerHTML = h;
-});
-
-socket.on('error', m => alert(m));
-function setReady() { socket.emit('playerReady'); document.getElementById('readyBtn').disabled = true; }
-
-socket.on('proposalUpdate', d => log(d.action==='call' ? `${d.name}: ${d.value}` : `${d.name}: پاس`));
-socket.on('leaderSelected', d => log(`👑 ${d.name} حاکم شد (${d.contract})`));
-
-socket.on('modeSelected', d => {
-  let modeText = MODE_NAMES[d.gameMode] || d.gameMode;
-  if (d.masterSuit) {
-    modeText += ` ${d.masterSuit}`;
-  }
-  log(`🎯 حالت بازی: ${modeText}`);
-  document.getElementById('modeModal').style.display = 'none';
-  document.getElementById('confirmModal').style.display = 'none';
-});
-
-socket.on('cardAction', d => log(`${d.name}: ${d.card.v}${d.card.s}`));
-
-socket.on('roundResult', d => {
-  log(`🏆 ${d.name} برد (+${d.points})`);
-  document.getElementById('rs0').textContent = d.roundPoints[0];
-  document.getElementById('rs1').textContent = d.roundPoints[1];
-  showResultModal(d);
-});
-
-function showResultModal(d) {
-  const modal = document.getElementById('resultModal');
-  const cardsDiv = document.getElementById('resultCards');
-  const infoDiv = document.getElementById('resultInfo');
-  const countdownDiv = document.getElementById('countdown');
-  
-  let cardsHtml = d.playedCards.map(p => {
-    const isRed = p.card.s === '♥' || p.card.s === '♦';
-    const colorClass = isRed ? 'red' : 'black';
-    return `
-      <div class="result-card-item ${p.isWinner ? 'winner' : ''}">
-        <div class="result-name">${p.name}${p.isWinner ? ' 👑' : ''}</div>
-        <div class="card ${colorClass}">
-          <div class="corner corner-top">
-            <div class="rank">${p.card.v}</div>
-            <div class="suit-small">${p.card.s}</div>
-          </div>
-          <div class="center-suit">${p.card.s}</div>
-          <div class="corner corner-bottom">
-            <div class="rank">${p.card.v}</div>
-            <div class="suit-small">${p.card.s}</div>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-  
-  cardsDiv.innerHTML = cardsHtml;
-  infoDiv.innerHTML = `✨ <b>${d.name}</b> این دست را برد! (+${d.points} امتیاز)`;
-  
-  modal.style.display = 'flex';
-  
-  let remaining = 3;
-  countdownDiv.textContent = `ادامه بازی در ${remaining} ثانیه...`;
-  
-  const interval = setInterval(() => {
-    remaining--;
-    if (remaining > 0) {
-      countdownDiv.textContent = `ادامه بازی در ${remaining} ثانیه...`;
-    } else {
-      clearInterval(interval);
-      modal.style.display = 'none';
-    }
-  }, 1000);
-}
-
-socket.on('gameState', d => {
-  state = d;
-  selected = [];
-  document.getElementById('lobby').style.display = 'none';
-  document.getElementById('game').style.display = 'block';
-  
-  if (state.phase === 'selectMode' && state.leader === myIndex) {
-    showModeModal();
-  } else {
-    document.getElementById('modeModal').style.display = 'none';
-    document.getElementById('confirmModal').style.display = 'none';
-  }
-  render();
-});
-
-function showModeModal() {
-  document.getElementById('modeModal').style.display = 'flex';
-  // Reset
-  document.querySelectorAll('input[name="gameMode"]').forEach(r => r.checked = false);
-  document.getElementById('suitSelectorWithTrump').style.display = 'none';
-  document.getElementById('selectedModeDisplay').style.display = 'none';
-  document.getElementById('confirmModeBtn').disabled = true;
-  document.getElementById('confirmModeBtn').textContent = '⚠️ ابتدا حالت بازی را انتخاب کنید';
-  selectedSuit = null;
-  document.querySelectorAll('.suit-btn').forEach(b => b.classList.remove('selected'));
-}
-
-// Event listeners for mode selection
-document.querySelectorAll('input[name="gameMode"]').forEach(radio => {
-  radio.addEventListener('change', function() {
-    const mode = this.value;
-    const suitSelector = document.getElementById('suitSelectorWithTrump');
-    const confirmBtn = document.getElementById('confirmModeBtn');
-    const display = document.getElementById('selectedModeDisplay');
-    const displayText = document.getElementById('selectedModeText');
-    
-    // Reset suit selection
-    selectedSuit = null;
-    document.querySelectorAll('.suit-btn').forEach(b => b.classList.remove('selected'));
-    
-    if (MODE_NEEDS_SUIT[mode]) {
-      // حالت‌های با حکم - نیاز به انتخاب خال
-      suitSelector.style.display = 'flex';
-      suitSelector.style.flexWrap = 'wrap';
-      display.style.display = 'block';
-      displayText.textContent = `${MODE_NAMES[mode]} - خال حکم را انتخاب کنید`;
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = '⚠️ خال حکم را انتخاب کنید';
-    } else {
-      // سرس - بدون حکم
-      suitSelector.style.display = 'none';
-      display.style.display = 'block';
-      displayText.textContent = MODE_NAMES[mode] + ' (بدون حکم)';
-      confirmBtn.disabled = false;
-      confirmBtn.textContent = '✅ تایید و شروع بازی';
-    }
-  });
-});
-
-function selectSuit(suit) {
-  const selectedMode = document.querySelector('input[name="gameMode"]:checked');
-  if (!selectedMode || !MODE_NEEDS_SUIT[selectedMode.value]) return;
-  
-  selectedSuit = suit;
-  document.querySelectorAll('.suit-btn').forEach(b => {
-    b.classList.toggle('selected', b.dataset.suit === suit);
-  });
-  
-  const display = document.getElementById('selectedModeDisplay');
-  const displayText = document.getElementById('selectedModeText');
-  const confirmBtn = document.getElementById('confirmModeBtn');
-  
-  display.style.display = 'block';
-  displayText.textContent = `${MODE_NAMES[selectedMode.value]} با حکم ${suit}`;
-  confirmBtn.disabled = false;
-  confirmBtn.textContent = '✅ تایید و شروع بازی';
-}
-
-function confirmMode() {
-  const selectedMode = document.querySelector('input[name="gameMode"]:checked');
-  if (!selectedMode) {
-    alert('لطفا حالت بازی را انتخاب کنید');
-    return;
-  }
-  
-  const mode = selectedMode.value;
-  
-  if (MODE_NEEDS_SUIT[mode] && !selectedSuit) {
-    alert('لطفا خال حکم را انتخاب کنید');
-    return;
-  }
-  
-  // ذخیره انتخاب و نمایش مودال تایید
-  pendingMode = { mode, suit: selectedSuit };
-  
-  let modeInfo = MODE_NAMES[mode];
-  if (MODE_NEEDS_SUIT[mode]) {
-    modeInfo += ` با حکم ${selectedSuit}`;
-  }
-  
-  document.getElementById('confirmModeInfo').textContent = modeInfo;
-  document.getElementById('confirmModeDesc').textContent = MODE_DESCRIPTIONS[mode];
-  document.getElementById('modeModal').style.display = 'none';
-  document.getElementById('confirmModal').style.display = 'flex';
-}
-
-function finalConfirm() {
-  if (!pendingMode) return;
-  
-  if (MODE_NEEDS_SUIT[pendingMode.mode]) {
-    socket.emit('selectMode', { mode: pendingMode.mode, suit: pendingMode.suit });
-  } else {
-    socket.emit('selectMode', { mode: pendingMode.mode });
-  }
-  
-  document.getElementById('confirmModal').style.display = 'none';
-  pendingMode = null;
-}
-
-function cancelConfirm() {
-  document.getElementById('confirmModal').style.display = 'none';
-  document.getElementById('modeModal').style.display = 'flex';
-}
-
-function createCardHtml(c, i, sel, clickable = true) {
-  const isRed = c.s === '♥' || c.s === '♦';
-  const colorClass = isRed ? 'red' : 'black';
-  const selectedClass = sel ? ' selected' : '';
-  const onClick = clickable && i >= 0 ? `onclick="clickCard(${i})"` : '';
-  
-  return `
-    <div class="card ${colorClass}${selectedClass}" ${onClick}>
-      <div class="corner corner-top">
-        <div class="rank">${c.v}</div>
-        <div class="suit-small">${c.s}</div>
-      </div>
-      <div class="center-suit">${c.s}</div>
-      <div class="corner corner-bottom">
-        <div class="rank">${c.v}</div>
-        <div class="suit-small">${c.s}</div>
-      </div>
-    </div>
-  `;
-}
-
-function getGameModeDisplay(gameMode, masterSuit) {
-  switch(gameMode) {
-    case 'hokm': return `👑 حکم ${masterSuit}`;
-    case 'sars': return '🔄 سَرس (بدون حکم)';
-    case 'nars': return `⬇️ نَرس ${masterSuit}`;
-    case 'asNars': return `🅰️ آس نَرس ${masterSuit}`;
-    default: return gameMode;
-  }
-}
-
-function render() {
-  let info = '', ctrl = '', showProp = false, showRound = false;
-  const tn = playerNames[state.turn] || '?', ln = playerNames[state.leader] || '?', my = state.turn === myIndex;
-
-  if (state.phase === 'propose') {
-    showProp = true;
-    info = `📢 مرحله تعهد | نوبت: <b>${tn}</b>${my?' (شما)':''} | تعهد فعلی: <b>${state.contract}</b>`;
-    if (my && !state.passed[myIndex]) {
-      ctrl = `<input type="number" id="propVal" value="${state.contract+5}" min="${state.contract+5}" max="165" step="5" style="width:80px">
-        <button onclick="submitProposal()">📣 اعلام</button>
-        <button onclick="passProposal()" class="danger">❌ پاس</button>`;
-    }
-  } else if (state.phase === 'exchange') {
-    info = `👑 <b>${ln}</b> حاکم است (تعهد: ${state.contract})`;
-    if (myIndex === state.leader) {
-      info += '<br>🔄 ۴ کارت اضافی را جهت حذف انتخاب کنید';
-      ctrl = selected.length === 4 ? '<button onclick="doExchange()">✅ تایید و حذف کارت‌ها</button>' : `انتخاب شده: ${selected.length}/4`;
-    } else {
-      info += '<br>⏳ حاکم در حال مرتب‌سازی دست...';
-    }
-  } else if (state.phase === 'selectMode') {
-    info = `👑 <b>${ln}</b>`;
-    info += myIndex === state.leader ? ' - در حال انتخاب نوع بازی...' : ' - منتظر انتخاب حاکم...';
-  } else if (state.phase === 'playing') {
-    showRound = true;
-    const modeDisplay = getGameModeDisplay(state.gameMode, state.masterSuit);
-    info = `${modeDisplay} | 👑 ${ln} (${state.contract}) | نوبت: <b>${tn}</b>${my?' - کارت بکشید!':''}`;
-    info += `<br>📦 دست‌های برده: ت۱: ${state.collectedCounts[0]} | ت۲: ${state.collectedCounts[1]}`;
-  }
-
-  document.getElementById('info').innerHTML = info;
-  document.getElementById('controls').innerHTML = ctrl;
-  document.getElementById('propHistoryBox').style.display = showProp ? 'block' : 'none';
-  document.getElementById('roundScoresBox').style.display = showRound ? 'block' : 'none';
-  
-  if (showProp) {
-    document.getElementById('propHistory').innerHTML = state.proposalLog.map(b => 
-      `<div class="prop-item ${b.action}">${playerNames[b.player]}: ${b.action==='pass'?'❌ پاس':'📣 '+b.value}</div>`
-    ).join('');
-  }
-  
-  if (showRound) {
-    document.getElementById('rs0').textContent = state.roundPoints[0];
-    document.getElementById('rs1').textContent = state.roundPoints[1];
-  }
-
-  document.getElementById('myHand').innerHTML = state.hand.map((c,i) => createCardHtml(c,i,selected.includes(i))).join('');
-  document.getElementById('handCount').textContent = state.hand.length;
-
-  let ph = state.playedCards.length ? state.playedCards.map(p => 
-    `<div class="played-card-container">
-      <div class="player-name">${playerNames[p.p]}</div>
-      ${createCardHtml(p.c, -1, false, false)}
-    </div>`
-  ).join('') : '<span style="color:#777">🎴 منتظر کارت‌ها...</span>';
-  document.getElementById('played').innerHTML = ph;
-
-  document.getElementById('gamePlayers').innerHTML = playerNames.map((n,i) => {
-    let c = ['player','team'+(i%2)];
-    if (state.turn===i && state.phase!=='finished') c.push('turn');
-    if (state.leader===i) c.push('leader');
-    return `<div class="${c.join(' ')}">${i+1}. ${n}${i===myIndex?' (شما)':''}${i===state.leader?' 👑':''} 🃏${state.handCounts[i]}</div>`;
-  }).join('');
-  
-  document.getElementById('s0').textContent = state.totalScores?.[0]||0;
-  document.getElementById('s1').textContent = state.totalScores?.[1]||0;
-}
-
-function clickCard(i) {
-  if (state.phase === 'exchange' && myIndex === state.leader) {
-    if (selected.includes(i)) selected = selected.filter(x => x !== i);
-    else if (selected.length < 4) selected.push(i);
-    render();
-  } else if (state.phase === 'playing' && state.turn === myIndex) {
-    socket.emit('playCard', i);
-  }
-}
-
-function submitProposal() {
-  const v = parseInt(document.getElementById('propVal').value);
-  if (v > state.contract && v <= 165 && v % 5 === 0) socket.emit('submitProposal', v);
-}
-function passProposal() { socket.emit('passProposal'); }
-function doExchange() { if (selected.length === 4) { socket.emit('exchangeCards', selected); selected = []; } }
-
-socket.on('matchEnded', d => {
-  document.getElementById('resultModal').style.display = 'none';
-  document.getElementById('s0').textContent = d.totalScores[0];
-  document.getElementById('s1').textContent = d.totalScores[1];
-  
-  const modeText = MODE_NAMES[d.gameMode] || d.gameMode;
-  
-  let m = `🎮 پایان دست! (${modeText})\n\n`;
-  m += d.success ? `✅ تیم حاکم موفق شد! (+${d.points[d.leaderTeam]})` : `❌ تیم حاکم موفق نشد! (-${d.contract})`;
-  m += `\n📊 تیم حریف: +${d.points[1-d.leaderTeam]}`;
-  m += `\n\n🏆 مجموع کل:\nتیم۱: ${d.totalScores[0]}\nتیم۲: ${d.totalScores[1]}`;
-  
-  alert(m);
-  document.getElementById('readyBtn').disabled = false;
-  document.getElementById('lobby').style.display = 'block';
-  document.getElementById('game').style.display = 'none';
-  document.getElementById('players').innerHTML = ''; 
-});
-</script>
+<script src="js/utils.js"></script>
+<script src="js/cards.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
