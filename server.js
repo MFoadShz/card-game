@@ -11,6 +11,14 @@ app.use(express.static('public'));
 const SUITS = ['♠','♥','♦','♣'];
 const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 
+// ترتیب قدرت کارت‌ها برای حالت‌های مختلف (از ضعیف به قوی)
+const RANK_ORDERS = {
+  hokm: ['2','3','4','5','6','7','8','9','10','J','Q','K','A'],      // حکم - عادی
+  sars: ['2','3','4','5','6','7','8','9','10','J','Q','K','A'],      // سرس - عادی بدون حکم
+  nars: ['A','K','Q','J','10','9','8','7','6','5','4','3','2'],      // نرس - 2 قوی‌ترین، A ضعیف‌ترین
+  asNars: ['K','Q','J','10','9','8','7','6','5','4','3','2','A']     // آس نرس - A قوی‌ترین، K ضعیف‌ترین
+};
+
 let rooms = {};
 
 function createDeck() {
@@ -23,10 +31,11 @@ function createDeck() {
   return d;
 }
 
-function sortCards(hand) {
+function sortCards(hand, gameMode = 'hokm') {
+  const rankOrder = RANK_ORDERS[gameMode] || RANK_ORDERS.hokm;
   return hand.sort((a, b) => {
     if (a.s !== b.s) return SUITS.indexOf(a.s) - SUITS.indexOf(b.s);
-    return RANKS.indexOf(b.v) - RANKS.indexOf(a.v);
+    return rankOrder.indexOf(b.v) - rankOrder.indexOf(a.v);
   });
 }
 
@@ -43,7 +52,7 @@ function getRoom(code) {
       turn: 0,
       passed: {},
       masterSuit: null,
-      isNoMaster: false,
+      gameMode: 'hokm', // hokm, nars, asNars, sars
       playedCards: [],
       collectedCards: {0: [], 1: []},
       opener: 0,
@@ -74,7 +83,7 @@ function startMatch(room) {
   room.leader = -1;
   room.passed = {0: false, 1: false, 2: false, 3: false};
   room.masterSuit = null;
-  room.isNoMaster = false;
+  room.gameMode = 'hokm';
   room.playedCards = [];
   room.collectedCards = {0: [], 1: []};
   room.turn = (room.opener + 1) % 4;
@@ -127,32 +136,41 @@ function resolveRound(room) {
   let winnerIndex = 0;
   let best = room.playedCards[0].c;
   let leadSuit = best.s;
+  const rankOrder = RANK_ORDERS[room.gameMode] || RANK_ORDERS.hokm;
+  
+  // فقط در حالت سرس برش وجود ندارد
+  const hasTrump = room.gameMode !== 'sars' && room.masterSuit;
 
   for (let i = 1; i < 4; i++) {
     let c = room.playedCards[i].c;
     
-    if (room.isNoMaster) {
-      if (c.s === leadSuit && RANKS.indexOf(c.v) > RANKS.indexOf(best.v)) {
-        winnerIndex = i;
-        best = c;
-      }
-    } else {
+    if (hasTrump) {
+      // حالت‌های حکم، نرس، آس نرس - برش مجاز است
       let cIsMaster = c.s === room.masterSuit;
       let bestIsMaster = best.s === room.masterSuit;
       
       if (cIsMaster && !bestIsMaster) {
+        // برش زد
         winnerIndex = i;
         best = c;
       } else if (cIsMaster && bestIsMaster) {
-        if (RANKS.indexOf(c.v) > RANKS.indexOf(best.v)) {
+        // هر دو حکم - مقایسه قدرت با ترتیب مخصوص حالت بازی
+        if (rankOrder.indexOf(c.v) > rankOrder.indexOf(best.v)) {
           winnerIndex = i;
           best = c;
         }
       } else if (!cIsMaster && !bestIsMaster && c.s === leadSuit) {
-        if (RANKS.indexOf(c.v) > RANKS.indexOf(best.v)) {
+        // هیچکدام حکم نیست - باید همخال باشد
+        if (rankOrder.indexOf(c.v) > rankOrder.indexOf(best.v)) {
           winnerIndex = i;
           best = c;
         }
+      }
+    } else {
+      // حالت سرس - بدون حکم، برش نمی‌شود
+      if (c.s === leadSuit && rankOrder.indexOf(c.v) > rankOrder.indexOf(best.v)) {
+        winnerIndex = i;
+        best = c;
       }
     }
   }
@@ -170,7 +188,13 @@ function resolveRound(room) {
     name: room.players[w].name,
     team: team,
     points: points,
-    roundPoints: room.roundPoints
+    roundPoints: room.roundPoints,
+    playedCards: room.playedCards.map(p => ({
+      player: p.p,
+      name: room.players[p.p].name,
+      card: p.c,
+      isWinner: p.p === w
+    }))
   });
   
   room.playedCards = [];
@@ -180,9 +204,9 @@ function resolveRound(room) {
     let extraPoints = calculateScore(room.centerStack);
     room.roundPoints[team] += extraPoints;
     
-    setTimeout(() => endMatch(room), 1000);
+    setTimeout(() => endMatch(room), 3500);
   } else {
-    broadcastState(room);
+    setTimeout(() => broadcastState(room), 3000);
   }
 }
 
@@ -209,7 +233,8 @@ function endMatch(room) {
     totalScores: room.totalScores,
     leaderTeam,
     contract: room.contract,
-    success: success
+    success: success,
+    gameMode: room.gameMode
   });
 
   room.players.forEach(p => p.ready = false);
@@ -229,7 +254,7 @@ function sendStateToPlayer(room, index) {
       myIndex: index,
       leader: room.leader,
       masterSuit: room.masterSuit,
-      isNoMaster: room.isNoMaster,
+      gameMode: room.gameMode,
       playedCards: room.playedCards,
       passed: room.passed,
       proposalLog: room.proposalLog,
@@ -349,14 +374,24 @@ io.on('connection', socket => {
     let room = rooms[myRoom];
     if (room.phase !== 'selectMode' || myIndex !== room.leader) return;
     
-    if (data.mode === 'noMaster') {
+    const validModes = ['hokm', 'nars', 'asNars', 'sars'];
+    
+    if (!validModes.includes(data.mode)) return;
+    
+    // سرس بدون حکم است
+    if (data.mode === 'sars') {
       room.masterSuit = null;
-      room.isNoMaster = true;
-    } else if (SUITS.includes(data.suit)) {
-      room.masterSuit = data.suit;
-      room.isNoMaster = false;
+      room.gameMode = 'sars';
     } else {
-      return;
+      // حکم، نرس، آس نرس - نیاز به انتخاب خال حکم
+      if (!SUITS.includes(data.suit)) return;
+      room.masterSuit = data.suit;
+      room.gameMode = data.mode;
+    }
+    
+    // مرتب‌سازی مجدد دست‌ها بر اساس حالت انتخابی
+    for (let i = 0; i < 4; i++) {
+      room.hands[i] = sortCards(room.hands[i], room.gameMode);
     }
     
     room.phase = 'playing';
@@ -364,7 +399,7 @@ io.on('connection', socket => {
     
     io.to(myRoom).emit('modeSelected', {
       masterSuit: room.masterSuit, 
-      isNoMaster: room.isNoMaster,
+      gameMode: room.gameMode,
       leader: room.leader, 
       name: room.players[room.leader].name
     });
@@ -385,7 +420,7 @@ io.on('connection', socket => {
       let leadSuit = room.playedCards[0].c.s;
       let hasSuit = hand.some(c => c.s === leadSuit);
       if (hasSuit && card.s !== leadSuit) {
-        socket.emit('error', 'باید کارت مرتبط بازی کنید');
+        socket.emit('error', 'باید کارت همخال بازی کنید');
         return;
       }
     }
@@ -396,7 +431,7 @@ io.on('connection', socket => {
     io.to(myRoom).emit('cardAction', {player: myIndex, card: card, name: room.players[myIndex].name});
 
     if (room.playedCards.length === 4) {
-      setTimeout(() => resolveRound(room), 1500);
+      setTimeout(() => resolveRound(room), 500);
     } else {
       room.turn = (room.turn + 1) % 4;
       broadcastState(room);
@@ -417,7 +452,6 @@ io.on('connection', socket => {
   });
 });
 
-// Keep alive for free hosting
 setInterval(() => {
   console.log('Keep alive ping');
 }, 14 * 60 * 1000);
