@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>بازی آنلاین</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+body{font-family:tahoma, sans-serif;background:#076324;min-height:100vh;padding:5px;color:#fff;font-size:14px;overflow-x:hidden}
+.card{display:inline-block;width:38px;height:55px;background:linear-gradient(145deg,#fff,#e6e6e6);color:#000;border:2px solid #333;border-radius:4px;margin:2px;text-align:center;line-height:55px;font-size:14px;font-weight:bold;box-shadow:1px 2px 4px rgba(0,0,0,0.3);touch-action:none;cursor:pointer}
+.card.selected{border:3px solid #ff0;transform:translateY(-8px);box-shadow:0 8px 15px rgba(255,255,0,0.4)}
+.card.red{color:#d00}
+.box{background:rgba(0,0,0,0.4);padding:10px;margin:5px 0;border-radius:8px}
+button{padding:8px 15px;margin:3px;font-size:14px;cursor:pointer;border-radius:5px;border:none;background:#4CAF50;color:#fff;touch-action:manipulation}
+button:active{transform:scale(0.95)}
+button:disabled{background:#555}
+input{padding:8px;font-size:14px;border-radius:5px;border:none;margin:3px;width:100px}
+#lobby,#game{max-width:100%;margin:0 auto}
+.player{padding:6px 10px;margin:3px;background:rgba(255,255,255,0.15);border-radius:5px;display:inline-block;font-size:12px}
+.player.ready{background:rgba(0,255,0,0.25)}
+.player.offline{opacity: 0.5; border: 1px dashed #999;}
+.player.turn{background:rgba(255,255,0,0.35);border:2px solid #ff0;animation:pulse 0.8s infinite}
+.player.leader{box-shadow:0 0 8px gold}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+.team0{border-right:3px solid #f66}
+.team1{border-right:3px solid #4cd}
+#myHand{min-height:70px;padding:10px 5px;display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end}
+#played{min-height:90px;display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:10px}
+#dropZone{width:100%;min-height:80px;border:3px dashed rgba(255,255,255,0.3);border-radius:10px;display:flex;justify-content:center;align-items:center;transition:all 0.2s}
+#info{font-size:14px;padding:10px;text-align:center;background:rgba(255,255,255,0.95);color:#000;border-radius:8px;margin:5px 0}
+#propHistory{max-height:100px;overflow-y:auto;background:rgba(0,0,0,0.5);padding:8px;border-radius:5px;font-size:12px}
+.prop-item{padding:3px;border-bottom:1px solid rgba(255,255,255,0.2)}
+.prop-item.pass{color:#f88}
+.prop-item.call{color:#8f8}
+#scores{display:flex;justify-content:space-around;padding:8px;font-size:13px}
+.score-box{padding:5px 10px;border-radius:5px}
+#log{max-height:60px;overflow-y:auto;font-size:11px;background:rgba(0,0,0,0.5);padding:5px;border-radius:5px}
+.played-card{text-align:center;padding:5px;background:rgba(255,255,255,0.1);border-radius:5px}
+.played-card .name{font-size:10px;margin-bottom:3px}
+.mode-btn{font-size:24px;width:45px;height:45px;border-radius:8px;margin:5px;border:1px solid #999}
+.modal-overlay {position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:999;display:flex;justify-content:center;align-items:center}
+.modal {background:#fff;color:#000;padding:20px;border-radius:10px;width:90%;max-width:350px;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="lobby">
+  <div class="box" style="text-align:center">
+    <h2>♣️ بازی آنلاین کارتی</h2>
+    <p style="font-size:11px;color:#ddd">اتصال مجدد خودکار فعال است</p>
+    <br>
+    <input id="name" placeholder="نام شما"><br>
+    <input id="room" placeholder="کد اتاق (مثلا 100)"><br>
+    <button onclick="joinRoom()">ورود</button>
+  </div>
+  <div id="playerList" class="box" style="display:none">
+    <b>بازیکنان:</b>
+    <div id="players"></div>
+    <p style="font-size:11px;margin:8px 0">تیم۱: بازیکن ۱و۳ | تیم۲: بازیکن ۲و۴</p>
+    <button id="readyBtn" onclick="setReady()">✓ اعلام آمادگی</button>
+  </div>
+</div>
+
+<div id="game" style="display:none">
+  <div id="scores" class="box">
+    <span class="score-box team0">تیم۱: <b id="s0">0</b></span>
+    <span class="score-box team1">تیم۲: <b id="s1">0</b></span>
+  </div>
+
+  <div id="info"></div>
+
+  <div class="box">
+    <div id="gamePlayers" style="text-align:center"></div>
+  </div>
+
+  <div id="roundScoresBox" class="box" style="display:none;text-align:center">
+    <b>امتیاز این دست:</b> تیم۱: <span id="rs0">0</span> | تیم۲: <span id="rs1">0</span>
+  </div>
+
+  <div id="propHistoryBox" class="box" style="display:none">
+    <b>روند انتخاب حاکم:</b>
+    <div id="propHistory"></div>
+  </div>
+
+  <div class="box">
+    <div id="dropZone">
+      <div id="played"><span style="color:#999">کارت‌های بازی شده</span></div>
+    </div>
+  </div>
+
+  <div class="box">
+    <b>دست شما (<span id="handCount">0</span>):</b>
+    <div id="myHand"></div>
+  </div>
+
+  <div id="controls" class="box" style="text-align:center; min-height: 40px;"></div>
+  
+  <div class="box">
+    <div id="log"></div>
+  </div>
+</div>
+
+<div id="modeModal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>تعیین استراتژی</h3>
+    <p>نوع بازی را انتخاب کنید:</p>
+    
+    <div style="margin: 15px 0;">
+      <h4>انتخاب خال برتر</h4>
+      <button class="mode-btn" onclick="setMode('suit','♠')" style="background:#fff;color:#000">♠</button>
+      <button class="mode-btn" onclick="setMode('suit','♥')" style="background:#fff;color:red">♥</button>
+      <button class="mode-btn" onclick="setMode('suit','♦')" style="background:#fff;color:red">♦</button>
+      <button class="mode-btn" onclick="setMode('suit','♣')" style="background:#fff;color:#000">♣</button>
+    </div>
+    
+    <div style="margin-top: 10px; border-top: 1px solid #ccc; padding-top: 5px;">
+      <button onclick="setMode('noMaster')" style="background:#555;width:100%;margin-top:5px">بدون خال برتر (سر/نرس)</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let myIndex = -1, state = {}, selected = [], playerNames = [];
+
+function log(msg) {
+  const l = document.getElementById('log');
+  l.innerHTML = `<div>${msg}</div>` + l.innerHTML;
+  if (l.children.length > 20) l.removeChild(l.lastChild);
+}
+
+socket.on('log', d => log(d.msg));
+
+function joinRoom() {
+  const name = document.getElementById('name').value.trim();
+  const room = document.getElementById('room').value.trim();
+  if(!name || !room) return alert('نام و کد اتاق الزامی است');
+  socket.emit('join', {code: room, name});
+}
+
+socket.on('joined', d => {
+  myIndex = d.index;
+  document.getElementById('playerList').style.display = 'block';
+  if(d.isRejoin) {
+     document.getElementById('readyBtn').disabled = true; 
+     log('اتصال مجدد برقرار شد...');
+  }
+});
+
+socket.on('updatePlayerList', ps => {
+  playerNames = ps.map(p => p.name);
+  let h = ps.map((p, i) => {
+      let status = '';
+      if(!p.connected) status = ' (آفلاین)';
+      else if(p.ready) status = ' ✓';
+      
+      let cls = 'player ' + (i%2==0 ? 'team0' : 'team1');
+      if(!p.connected) cls += ' offline';
+      else if(p.ready) cls += ' ready';
+      
+      return `<div class="${cls}">${i+1}.${p.name}${i===myIndex?' (شما)':''}${status}</div>`;
+  }).join('');
+  document.getElementById('players').innerHTML = h;
+});
+
+socket.on('error', m => alert(m));
+function setReady() { socket.emit('playerReady'); document.getElementById('readyBtn').disabled = true; }
+
+socket.on('proposalUpdate', d => log(d.action==='call' ? `${d.name}: ${d.value}` : `${d.name}: پاس`));
+socket.on('leaderSelected', d => log(`👑 ${d.name} حاکم شد با تعهد: ${d.contract}`));
+socket.on('modeSelected', d => {
+    log(`حالت بازی: ${d.isNoMaster ? 'بدون حکم' : d.masterSuit}`);
+    document.getElementById('modeModal').style.display = 'none';
+});
+socket.on('cardAction', d => log(`${d.name}: ${d.card.v}${d.card.s}`));
+socket.on('roundResult', d => {
+  log(`${d.name} برد (+${d.points})`);
+  document.getElementById('rs0').textContent = d.roundPoints[0];
+  document.getElementById('rs1').textContent = d.roundPoints[1];
+});
+
+socket.on('gameState', d => {
+  state = d;
+  selected = [];
+  document.getElementById('lobby').style.display = 'none';
+  document.getElementById('game').style.display = 'block';
+  
+  if (state.phase === 'selectMode' && state.leader === myIndex) {
+      document.getElementById('modeModal').style.display = 'flex';
+  } else {
+      document.getElementById('modeModal').style.display = 'none';
+  }
+  render();
+});
+
+function cardHtml(c, i, sel) {
+  let r = (c.s==='♥'||c.s==='♦') ? 'red' : '';
+  return `<span class="card ${r}${sel?' selected':''}" onclick="clickCard(${i})">${c.v}${c.s}</span>`;
+}
+
+function render() {
+  let info = '', ctrl = '', showProp = false, showRound = false;
+  const tn = playerNames[state.turn] || '?', ln = playerNames[state.leader] || '?', my = state.turn === myIndex;
+
+  if (state.phase === 'propose') {
+    showProp = true;
+    info = `📢 مرحله تعهد | نوبت: <b>${tn}</b>${my?' (شما)':''} | فعلی: <b>${state.contract}</b>`;
+    if (my && !state.passed[myIndex]) {
+      ctrl = `<input type="number" id="propVal" value="${state.contract+5}" min="${state.contract+5}" max="165" step="5" style="width:70px">
+        <button onclick="submitProposal()">اعلام</button><button onclick="passProposal()" style="background:#c33">پاس</button>`;
+    }
+  } else if (state.phase === 'exchange') {
+    info = `👑 ${ln} حاکم (${state.contract})`;
+    if (myIndex === state.leader) {
+      info += '<br>۴ کارت اضافی را جهت حذف انتخاب کنید';
+      ctrl = selected.length === 4 ? '<button onclick="doExchange()">✓ تایید و حذف</button>' : `انتخاب: ${selected.length}/4`;
+    } else {
+      info += '<br>⏳ حاکم در حال مرتب‌سازی دست...';
+    }
+  } else if (state.phase === 'selectMode') {
+    info = `👑 ${ln}`;
+    info += myIndex === state.leader ? ' - در حال انتخاب...' : ' - منتظر انتخاب حاکم...';
+  } else if (state.phase === 'playing') {
+    showRound = true;
+    info = `${state.isNoMaster ? '🔄 بدون حکم' : '🎯 '+state.masterSuit} | 👑${ln} (${state.contract}) | نوبت: <b>${tn}</b>${my?' - کارت بکشید!':''}`;
+    info += `<br>دست‌ها: ت۱:${state.collectedCounts[0]} ت۲:${state.collectedCounts[1]}`;
+  }
+
+  document.getElementById('info').innerHTML = info;
+  document.getElementById('controls').innerHTML = ctrl;
+  document.getElementById('propHistoryBox').style.display = showProp ? 'block' : 'none';
+  document.getElementById('roundScoresBox').style.display = showRound ? 'block' : 'none';
+  
+  if (showProp) {
+    document.getElementById('propHistory').innerHTML = state.proposalLog.map(b => 
+      `<div class="prop-item ${b.action}">${playerNames[b.player]}: ${b.action==='pass'?'پاس':b.value}</div>`
+    ).join('');
+  }
+  
+  if (showRound) {
+    document.getElementById('rs0').textContent = state.roundPoints[0];
+    document.getElementById('rs1').textContent = state.roundPoints[1];
+  }
+
+  document.getElementById('myHand').innerHTML = state.hand.map((c,i) => cardHtml(c,i,selected.includes(i))).join('');
+  document.getElementById('handCount').textContent = state.hand.length;
+
+  let ph = state.playedCards.length ? state.playedCards.map(p => 
+    `<div class="played-card"><div class="name">${playerNames[p.p]}</div>${cardHtml(p.c,-1)}</div>`
+  ).join('') : '<span style="color:#999">...</span>';
+  document.getElementById('played').innerHTML = ph;
+
+  document.getElementById('gamePlayers').innerHTML = playerNames.map((n,i) => {
+    let c = ['player','team'+(i%2)];
+    if (state.turn===i && state.phase!=='finished') c.push('turn');
+    if (state.leader===i) c.push('leader');
+    return `<div class="${c.join(' ')}">${i+1}.${n}${i===myIndex?' (شما)':''}${i===state.leader?' 👑':''} 🎴${state.handCounts[i]}</div>`;
+  }).join('');
+  
+  document.getElementById('s0').textContent = state.totalScores?.[0]||0;
+  document.getElementById('s1').textContent = state.totalScores?.[1]||0;
+}
+
+function clickCard(i) {
+  if (state.phase === 'exchange' && myIndex === state.leader) {
+    if (selected.includes(i)) selected = selected.filter(x => x !== i);
+    else if (selected.length < 4) selected.push(i);
+    render();
+  } else if (state.phase === 'playing' && state.turn === myIndex) {
+    socket.emit('playCard', i);
+  }
+}
+
+function submitProposal() {
+  const v = parseInt(document.getElementById('propVal').value);
+  if (v > state.contract && v <= 165 && v % 5 === 0) socket.emit('submitProposal', v);
+}
+function passProposal() { socket.emit('passProposal'); }
+function doExchange() { if (selected.length === 4) { socket.emit('exchangeCards', selected); selected = []; } }
+function setMode(type, suit) { 
+    if(type==='noMaster') socket.emit('selectMode', {mode:'noMaster'});
+    else socket.emit('selectMode', {mode:'suit', suit:suit});
+}
+
+socket.on('matchEnded', d => {
+  document.getElementById('s0').textContent = d.totalScores[0];
+  document.getElementById('s1').textContent = d.totalScores[1];
+  
+  let m = `پایان دست!\n`;
+  m += d.success ? `✅ تیم حاکم موفق شد! (+${d.points[d.leaderTeam]})` : `❌ تیم حاکم موفق نشد! (-${d.contract})`;
+  m += `\nتیم حریف: +${d.points[1-d.leaderTeam]}`;
+  m += `\n\nمجموع کل: ت۱:${d.totalScores[0]} ت۲:${d.totalScores[1]}`;
+  
+  alert(m);
+  document.getElementById('readyBtn').disabled = false;
+  document.getElementById('lobby').style.display = 'block';
+  document.getElementById('game').style.display = 'none';
+  document.getElementById('players').innerHTML = ''; 
+});
+</script>
+</body>
+</html>
