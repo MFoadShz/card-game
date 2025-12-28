@@ -89,7 +89,8 @@ socket.on('matchEnded', d => {
   document.getElementById('players').innerHTML = '';
 });
 
-// User actions
+// ==================== User Actions ====================
+
 function joinRoom() {
   const name = document.getElementById('name').value.trim();
   const room = document.getElementById('room').value.trim();
@@ -102,19 +103,30 @@ function setReady() {
   document.getElementById('readyBtn').disabled = true;
 }
 
+// تابع اصلی کلیک روی کارت
 function clickCard(i) {
+  console.log('Card clicked:', i, 'Phase:', state.phase, 'Leader:', state.leader, 'MyIndex:', myIndex);
+  
   if (state.phase === 'exchange' && myIndex === state.leader) {
-    if (selected.includes(i)) selected = selected.filter(x => x !== i);
-    else if (selected.length < 4) selected.push(i);
+    // حالت انتخاب کارت برای حذف
+    if (selected.includes(i)) {
+      selected = selected.filter(x => x !== i);
+    } else if (selected.length < 4) {
+      selected.push(i);
+    }
+    console.log('Selected cards:', selected);
     render();
   } else if (state.phase === 'playing' && state.turn === myIndex) {
+    // حالت بازی کارت
     socket.emit('playCard', i);
   }
 }
 
 function submitProposal() {
   const v = parseInt(document.getElementById('propVal').value);
-  if (v > state.contract && v <= 165 && v % 5 === 0) socket.emit('submitProposal', v);
+  if (v > state.contract && v <= 165 && v % 5 === 0) {
+    socket.emit('submitProposal', v);
+  }
 }
 
 function passProposal() {
@@ -123,6 +135,7 @@ function passProposal() {
 
 function doExchange() {
   if (selected.length === 4) {
+    console.log('Exchanging cards:', selected);
     socket.emit('exchangeCards', selected);
     selected = [];
   }
@@ -190,31 +203,34 @@ function cancelConfirm() {
   document.getElementById('modeModal').style.display = 'flex';
 }
 
-// Mode selection listeners
-document.querySelectorAll('input[name="gameMode"]').forEach(radio => {
-  radio.addEventListener('change', function () {
-    const mode = this.value;
-    const suitSelector = document.getElementById('suitSelectorWithTrump');
-    const confirmBtn = document.getElementById('confirmModeBtn');
-    const display = document.getElementById('selectedModeDisplay');
-    const displayText = document.getElementById('selectedModeText');
+// ==================== Mode Selection Listeners ====================
 
-    selectedSuit = null;
-    document.querySelectorAll('.suit-btn').forEach(b => b.classList.remove('selected'));
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('input[name="gameMode"]').forEach(radio => {
+    radio.addEventListener('change', function () {
+      const mode = this.value;
+      const suitSelector = document.getElementById('suitSelectorWithTrump');
+      const confirmBtn = document.getElementById('confirmModeBtn');
+      const display = document.getElementById('selectedModeDisplay');
+      const displayText = document.getElementById('selectedModeText');
 
-    if (MODE_NEEDS_SUIT[mode]) {
-      suitSelector.style.display = 'flex';
-      suitSelector.style.flexWrap = 'wrap';
-      display.style.display = 'block';
-      displayText.textContent = `${MODE_NAMES[mode]} - خال حکم را انتخاب کنید`;
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = '⚠️ خال حکم را انتخاب کنید';
-    } else {
-      suitSelector.style.display = 'none';
-      display.style.display = 'block';
-      displayText.textContent = MODE_NAMES[mode] + ' (بدون حکم)';
-      confirmBtn.disabled = false;
-      confirmBtn.textContent = '✅ تایید و شروع بازی';
-    }
+      selectedSuit = null;
+      document.querySelectorAll('.suit-btn').forEach(b => b.classList.remove('selected'));
+
+      if (MODE_NEEDS_SUIT[mode]) {
+        suitSelector.style.display = 'flex';
+        suitSelector.style.flexWrap = 'wrap';
+        display.style.display = 'block';
+        displayText.textContent = `${MODE_NAMES[mode]} - خال حکم را انتخاب کنید`;
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '⚠️ خال حکم را انتخاب کنید';
+      } else {
+        suitSelector.style.display = 'none';
+        display.style.display = 'block';
+        displayText.textContent = MODE_NAMES[mode] + ' (بدون حکم)';
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '✅ تایید و شروع بازی';
+      }
+    });
   });
 });

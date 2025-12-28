@@ -5,9 +5,13 @@ function renderOtherPlayers() {
 
   ['top', 'left', 'right'].forEach(pos => {
     const playerIdx = positions[pos];
-    const elem = document.getElementById(`player${pos.charAt(0).toUpperCase() + pos.slice(1)}`);
+    const elemId = 'player' + pos.charAt(0).toUpperCase() + pos.slice(1);
+    const elem = document.getElementById(elemId);
+    if (!elem) return;
+    
     const label = elem.querySelector('.player-label');
     const cardsBack = elem.querySelector('.cards-back');
+    if (!label || !cardsBack) return;
 
     const name = playerNames[playerIdx] || '?';
     const count = state.handCounts[playerIdx] || 0;
@@ -21,6 +25,8 @@ function renderOtherPlayers() {
 }
 
 function render() {
+  if (!state || !state.phase) return;
+  
   let info = '', ctrl = '', showProp = false, showRound = false;
   const tn = playerNames[state.turn] || '?';
   const ln = playerNames[state.leader] || '?';
@@ -37,8 +43,10 @@ function render() {
   } else if (state.phase === 'exchange') {
     info = `👑 <b>${ln}</b> حاکم است (تعهد: ${state.contract})`;
     if (myIndex === state.leader) {
-      info += '<br>🔄 ۴ کارت اضافی را جهت حذف انتخاب کنید';
-      ctrl = selected.length === 4 ? '<button onclick="doExchange()">✅ تایید و حذف کارت‌ها</button>' : `انتخاب شده: ${selected.length}/4`;
+      info += '<br>🔄 ۴ کارت را برای حذف انتخاب کنید (روی کارت کلیک کنید)';
+      ctrl = selected.length === 4 
+        ? '<button onclick="doExchange()">✅ تایید و حذف کارت‌ها</button>' 
+        : `<span style="color:#ffd700">انتخاب شده: ${selected.length}/4</span>`;
     } else {
       info += '<br>⏳ حاکم در حال مرتب‌سازی دست...';
     }
@@ -57,39 +65,35 @@ function render() {
   document.getElementById('propHistoryBox').style.display = showProp ? 'block' : 'none';
   document.getElementById('roundScoresBox').style.display = showRound ? 'block' : 'none';
 
-  if (showProp) {
+  if (showProp && state.proposalLog) {
     document.getElementById('propHistory').innerHTML = state.proposalLog.map(b =>
       `<div class="prop-item ${b.action}">${playerNames[b.player]}: ${b.action === 'pass' ? '❌ پاس' : '📣 ' + b.value}</div>`
     ).join('');
   }
 
-  if (showRound) {
+  if (showRound && state.roundPoints) {
     document.getElementById('rs0').textContent = state.roundPoints[0];
     document.getElementById('rs1').textContent = state.roundPoints[1];
   }
 
-  // رندر دست من با قابلیت drag یا click برای exchange
+  // رندر دست من - در حالت exchange هم کلیک فعال باشد
   const canDrag = state.phase === 'playing' && state.turn === myIndex;
-  const canClick = state.phase === 'exchange' && state.leader === myIndex;
-  const isClickable = state.phase === 'playing' && state.turn === myIndex;
+  const canClick = state.phase === 'exchange' || state.phase === 'playing';
   
-  document.getElementById('myHand').innerHTML = state.hand.map((c, i) => {
-    const html = createCardHtml(c, i, selected.includes(i), isClickable || canClick, canDrag);
-    // اگر در مرحله exchange است، کارت‌ها کلیک‌کنندگی داشته باشند
-    if (canClick) {
-      return `<div onclick="clickCard(${i})" style="cursor: pointer;">${html}</div>`;
-    }
-    return html;
-  }).join('');
+  document.getElementById('myHand').innerHTML = state.hand.map((c, i) =>
+    createCardHtml(c, i, selected.includes(i), canClick, canDrag)
+  ).join('');
   document.getElementById('handCount').textContent = state.hand.length;
 
   // رندر کارت‌های بازی شده
-  let ph = state.playedCards.length ? state.playedCards.map(p =>
-    `<div class="played-card-container">
-      <div class="player-name">${playerNames[p.p]}</div>
-      ${createCardHtml(p.c, -1, false, false)}
-    </div>`
-  ).join('') : '<span style="color:#777">🎴 کارت را اینجا رها کنید</span>';
+  let ph = state.playedCards && state.playedCards.length 
+    ? state.playedCards.map(p =>
+      `<div class="played-card-container">
+        <div class="player-name">${playerNames[p.p]}</div>
+        ${createCardHtml(p.c, -1, false, false)}
+      </div>`
+    ).join('') 
+    : '<span style="color:#777">🎴 کارت را اینجا رها کنید</span>';
   document.getElementById('played').innerHTML = ph;
 
   // رندر بازیکنان دیگر

@@ -7,9 +7,12 @@ function createCardHtml(c, i, sel, clickable = true, draggable = false) {
   const selectedClass = sel ? ' selected' : '';
   const dragAttr = draggable ? 'draggable="true"' : '';
   const dataIndex = i >= 0 ? `data-index="${i}"` : '';
+  
+  // اضافه کردن onclick برای کلیک روی کارت
+  const onClickAttr = (clickable && i >= 0) ? `onclick="clickCard(${i})"` : '';
 
   return `
-    <div class="card ${colorClass}${selectedClass}" ${dataIndex} ${dragAttr}>
+    <div class="card ${colorClass}${selectedClass}" ${dataIndex} ${dragAttr} ${onClickAttr}>
       <div class="corner corner-top">
         <div class="rank">${c.v}</div>
         <div class="suit-small">${c.s}</div>
@@ -38,6 +41,8 @@ function setupDragAndDrop() {
   const dropZone = document.getElementById('dropZone');
   const myHand = document.getElementById('myHand');
 
+  if (!dropZone || !myHand) return;
+
   // Touch events for mobile
   myHand.addEventListener('touchstart', handleTouchStart, { passive: false });
   myHand.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -48,7 +53,7 @@ function setupDragAndDrop() {
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp);
 
-  // Drop zone events
+  // Drop zone visual feedback
   dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
     dropZone.classList.add('drag-over');
@@ -69,7 +74,14 @@ function setupDragAndDrop() {
 
 function handleTouchStart(e) {
   const card = e.target.closest('.card');
-  if (!card || !canPlayCard()) return;
+  if (!card) return;
+  
+  // در حالت exchange فقط انتخاب کنیم، drag نکنیم
+  if (state.phase === 'exchange') {
+    return; // اجازه بده onclick کار کند
+  }
+  
+  if (!canPlayCard()) return;
 
   e.preventDefault();
   draggedIndex = parseInt(card.dataset.index);
@@ -109,11 +121,20 @@ function handleTouchEnd(e) {
 
 function handleMouseDown(e) {
   const card = e.target.closest('.card');
-  if (!card || !canPlayCard()) return;
+  if (!card) return;
+  
+  // در حالت exchange فقط انتخاب کنیم، drag نکنیم
+  if (state.phase === 'exchange') {
+    return; // اجازه بده onclick کار کند
+  }
+  
+  if (!canPlayCard()) return;
 
   draggedIndex = parseInt(card.dataset.index);
   if (isNaN(draggedIndex)) return;
 
+  e.preventDefault(); // جلوگیری از انتخاب متن
+  
   draggedCard = card.cloneNode(true);
   draggedCard.classList.add('dragging');
   draggedCard.style.position = 'fixed';
@@ -152,6 +173,8 @@ function updateDragPosition(point) {
 
 function checkDropZone(point) {
   const dropZone = document.getElementById('dropZone');
+  if (!dropZone) return;
+  
   const dropRect = dropZone.getBoundingClientRect();
 
   if (point.clientX >= dropRect.left && point.clientX <= dropRect.right &&
@@ -169,12 +192,17 @@ function cleanupDrag() {
   }
 
   document.querySelectorAll('.card').forEach(c => c.style.opacity = '1');
-  document.getElementById('dropZone').classList.remove('drag-over');
+  
+  const dropZone = document.getElementById('dropZone');
+  if (dropZone) {
+    dropZone.classList.remove('drag-over');
+  }
+  
   draggedIndex = -1;
 }
 
 function canPlayCard() {
-  return state.phase === 'playing' && state.turn === myIndex;
+  return state && state.phase === 'playing' && state.turn === myIndex;
 }
 
 function playCardByIndex(index) {
