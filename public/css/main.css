@@ -11,10 +11,12 @@ body {
   font-family: 'Segoe UI', Tahoma, sans-serif;
   background: linear-gradient(135deg, #1a5c2e 0%, #0d3d1a 50%, #0a2912 100%);
   min-height: 100vh;
-  padding: 8px;
+  padding: 4px;
   color: #fff;
   font-size: 14px;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .box {
@@ -84,34 +86,31 @@ input:focus {
 .team1 { border-right: 4px solid #29b6f6; }
 
 #myHand {
-  min-height: 90px;
-  padding: 15px 20px;
+  flex: 1;
+  min-height: 100px;
+  padding: 10px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: flex-end;
+  overflow-y: auto;
 }
 
 #played {
-  min-height: 100px;
+  min-height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 10px;
+  gap: 10px;
+  padding: 8px;
 }
 
-#dropZone {
-  width: 100%;
-  min-height: 120px;
-  border: 3px dashed rgba(255, 255, 255, 0.25);
-  border-radius: 15px;
+#game {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.2);
-  transition: all 0.3s;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 #dropZone.drag-over {
@@ -121,46 +120,51 @@ input:focus {
 }
 
 #info {
-  font-size: 15px;
-  padding: 12px;
+  font-size: 13px;
+  padding: 8px;
   text-align: center;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(240, 240, 240, 0.95));
   color: #333;
-  border-radius: 10px;
-  margin: 6px 0;
+  border-radius: 8px;
+  margin: 2px 4px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
-#propHistory {
-  max-height: 100px;
-  overflow-y: auto;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 12px;
+#propHistoryBox,
+#roundScoresBox {
+  display: none !important;
 }
 
 .prop-item { padding: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.15); }
 .prop-item.pass { color: #ef5350; }
 .prop-item.call { color: #66bb6a; }
 
-#scores { display: flex; justify-content: space-around; padding: 10px; font-size: 14px; }
-.score-box { padding: 8px 15px; border-radius: 8px; background: rgba(0, 0, 0, 0.3); font-weight: bold; }
+#scores { 
+  display: flex; 
+  justify-content: space-around; 
+  padding: 6px 4px; 
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.score-box { 
+  padding: 6px 10px; 
+  border-radius: 8px; 
+  background: rgba(0, 0, 0, 0.3); 
+  font-weight: bold;
+  font-size: 12px;
+}
 
 #log {
-  max-height: 70px;
-  overflow-y: auto;
-  font-size: 11px;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 8px;
-  border-radius: 8px;
+  display: none;
 }
 
 /* بازیکنان دیگر */
 #otherPlayers {
   position: relative;
-  height: 120px;
-  margin: 10px 0;
+  height: 75px;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .other-player {
@@ -219,6 +223,22 @@ input:focus {
   flex-direction: column;
 }
 
+.game-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 4px;
+  gap: 6px;
+}
+
+#controls {
+  text-align: center;
+  min-height: 45px;
+  flex-shrink: 0;
+  margin: 0 4px 4px 4px;
+}
+
 /* طراحی برای صفحه‌نمایش‌های کوچک */
 @media (max-width: 768px) {
   body {
@@ -240,6 +260,15 @@ input:focus {
   }
 
   #dropZone {
-    min-height: 100px;
+    height: 85px;
+  }
+
+  #game {
+    padding: 0;
+  }
+
+  .game-main {
+    margin: 2px;
+    gap: 4px;
   }
 }
