@@ -158,6 +158,10 @@ function setupSocketHandlers(io) {
       }
     });
 
+    socket.on('voice-join', (peerId) => {
+      socket.broadcast.emit('voice-peer', peerId);
+    });
+
     function handleNextProposer(io, room) {
       let active = room.getActiveProposers();
       if (active === 1) {

@@ -75,6 +75,9 @@
   <div class="box">
     <div id="log"></div>
   </div>
+
+  <!-- دکمه قطع و وصل میکروفون -->
+  <button id="micToggle" onclick="toggleMic()" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:50%;background:#ff5722;color:white;border:none;box-shadow:0 3px 6px rgba(0,0,0,0.3);cursor:pointer">🎤</button>
 </div>
 
 <!-- مودال انتخاب حالت بازی -->
@@ -167,5 +170,7 @@
 <script src="js/cards.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<script src="js/voice.js"></script>
 </body>
 </html>
