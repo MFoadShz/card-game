@@ -218,3 +218,28 @@ input:focus {
 .other-player.right .cards-back {
   flex-direction: column;
 }
+
+/* طراحی برای صفحه‌نمایش‌های کوچک */
+@media (max-width: 768px) {
+  body {
+    font-size: 12px;
+  }
+
+  .card {
+    width: 40px;
+    height: 60px;
+  }
+
+  .player-label {
+    font-size: 10px;
+  }
+
+  #myHand {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  #dropZone {
+    min-height: 100px;
+  }
+}

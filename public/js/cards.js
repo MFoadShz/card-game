@@ -167,8 +167,12 @@ function handleMouseUp(e) {
 
 function updateDragPosition(point) {
   if (!draggedCard) return;
-  draggedCard.style.left = (point.clientX - 26) + 'px';
-  draggedCard.style.top = (point.clientY - 37) + 'px';
+
+  // استفاده از requestAnimationFrame برای بهبود عملکرد
+  requestAnimationFrame(() => {
+    draggedCard.style.left = (point.clientX - 26) + 'px';
+    draggedCard.style.top = (point.clientY - 37) + 'px';
+  });
 }
 
 function checkDropZone(point) {

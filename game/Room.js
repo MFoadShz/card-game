@@ -169,6 +169,9 @@ class Room {
     hand.splice(cardIndex, 1);
     this.playedCards.push({ p: playerIndex, c: card });
 
+    // انتقال نوبت به بازیکن بعدی
+    this.turn = (this.turn + 1) % 4;
+
     return card;
   }
 
