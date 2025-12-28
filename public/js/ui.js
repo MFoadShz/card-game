@@ -68,11 +68,19 @@ function render() {
     document.getElementById('rs1').textContent = state.roundPoints[1];
   }
 
-  // رندر دست من با قابلیت drag
+  // رندر دست من با قابلیت drag یا click برای exchange
   const canDrag = state.phase === 'playing' && state.turn === myIndex;
-  document.getElementById('myHand').innerHTML = state.hand.map((c, i) =>
-    createCardHtml(c, i, selected.includes(i), true, canDrag)
-  ).join('');
+  const canClick = state.phase === 'exchange' && state.leader === myIndex;
+  const isClickable = state.phase === 'playing' && state.turn === myIndex;
+  
+  document.getElementById('myHand').innerHTML = state.hand.map((c, i) => {
+    const html = createCardHtml(c, i, selected.includes(i), isClickable || canClick, canDrag);
+    // اگر در مرحله exchange است، کارت‌ها کلیک‌کنندگی داشته باشند
+    if (canClick) {
+      return `<div onclick="clickCard(${i})" style="cursor: pointer;">${html}</div>`;
+    }
+    return html;
+  }).join('');
   document.getElementById('handCount').textContent = state.hand.length;
 
   // رندر کارت‌های بازی شده
