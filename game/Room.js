@@ -1,5 +1,6 @@
 const { createDeck, sortCards, SUITS } = require('./Deck');
 const { calculateScore, resolveRoundWinner } = require('./Rules');
+const BotAI = require('./BotAI');
 
 class Room {
   constructor(code, password, hostName, scoreLimit) {
@@ -24,10 +25,116 @@ class Room {
     this.proposalLog = [];
     this.roundPoints = { 0: 0, 1: 0 };
     
-    // Game history for end screen
+    // Game history
     this.gameHistory = [];
     this.matchHistory = [];
+    
+    // Timer system
+    this.turnTimer = null;
+    this.turnStartTime = null;
+    this.turnDuration = 30000; // 30 seconds
+    this.timerCallback = null;
+    
+    // Bot AI
+    this.botAI = new BotAI();
   }
+
+  // === Timer Methods ===
+  
+  startTurnTimer(callback) {
+    this.clearTurnTimer();
+    this.turnStartTime = Date.now();
+    this.timerCallback = callback;
+    
+    this.turnTimer = setTimeout(() => {
+      this.handleTimeout();
+    }, this.turnDuration);
+  }
+
+  clearTurnTimer() {
+    if (this.turnTimer) {
+      clearTimeout(this.turnTimer);
+      this.turnTimer = null;
+    }
+    this.turnStartTime = null;
+  }
+
+  getRemainingTime() {
+    if (!this.turnStartTime) return this.turnDuration;
+    const elapsed = Date.now() - this.turnStartTime;
+    return Math.max(0, this.turnDuration - elapsed);
+  }
+
+  handleTimeout() {
+    // Bot plays for the timed-out player
+    const playerIndex = this.turn;
+    let result = null;
+
+    switch (this.phase) {
+      case 'propose':
+        result = this.botPropose(playerIndex);
+        break;
+      case 'exchange':
+        result = this.botExchange(playerIndex);
+        break;
+      case 'selectMode':
+        result = this.botSelectMode(playerIndex);
+        break;
+      case 'playing':
+        result = this.botPlayCard(playerIndex);
+        break;
+    }
+
+    if (this.timerCallback) {
+      this.timerCallback(playerIndex, result);
+    }
+  }
+
+  // === Bot Actions ===
+  
+  botPropose(playerIndex) {
+    const hand = this.hands[playerIndex];
+    const decision = this.botAI.selectProposal(hand, this.contract, this.leader !== -1);
+    
+    if (decision.action === 'pass') {
+      this.passProposal(playerIndex);
+      return { action: 'pass' };
+    } else {
+      this.submitProposal(playerIndex, decision.value);
+      return { action: 'call', value: decision.value };
+    }
+  }
+
+  botExchange(playerIndex) {
+    const hand = this.hands[playerIndex];
+    const cardIndices = this.botAI.selectExchangeCards(hand);
+    this.exchangeCards(playerIndex, cardIndices);
+    return { action: 'exchange', indices: cardIndices };
+  }
+
+  botSelectMode(playerIndex) {
+    const hand = this.hands[playerIndex];
+    const decision = this.botAI.selectGameMode(hand);
+    this.selectMode(playerIndex, decision.mode, decision.suit);
+    return { action: 'selectMode', mode: decision.mode, suit: decision.suit };
+  }
+
+  botPlayCard(playerIndex) {
+    const hand = this.hands[playerIndex];
+    const cardIndex = this.botAI.selectCard(
+      hand,
+      this.playedCards,
+      this.gameMode,
+      this.masterSuit,
+      playerIndex,
+      this.leader
+    );
+    
+    const card = this.playCard(playerIndex, cardIndex);
+    return { action: 'playCard', cardIndex, card };
+  }
+
+  // === Original Methods (updated) ===
 
   addPlayer(id, name) {
     if (this.players.length >= 4) return false;
@@ -53,6 +160,8 @@ class Room {
   }
 
   startMatch() {
+    this.clearTurnTimer();
+    
     let deck = createDeck();
     this.phase = 'propose';
     this.hands = {};
@@ -87,6 +196,7 @@ class Room {
       this.contract = value;
       this.leader = playerIndex;
       this.proposalLog.push({ player: playerIndex, action: 'call', value });
+      this.clearTurnTimer();
       return true;
     }
     return false;
@@ -96,6 +206,7 @@ class Room {
     if (this.phase !== 'propose' || this.turn !== playerIndex) return false;
     this.passed[playerIndex] = true;
     this.proposalLog.push({ player: playerIndex, action: 'pass' });
+    this.clearTurnTimer();
     return true;
   }
 
@@ -113,6 +224,7 @@ class Room {
   }
 
   finishProposalPhase() {
+    this.clearTurnTimer();
     if (this.leader === -1) return 'restart';
     let winner = parseInt(Object.keys(this.passed).find(k => !this.passed[k]));
     this.leader = winner;
@@ -125,6 +237,9 @@ class Room {
   exchangeCards(playerIndex, cardIndices) {
     if (this.phase !== 'exchange' || playerIndex !== this.leader) return false;
     if (cardIndices.length !== 4) return false;
+    
+    this.clearTurnTimer();
+    
     cardIndices.sort((a, b) => b - a);
     let hand = this.hands[playerIndex];
     let exchanged = [];
@@ -144,6 +259,9 @@ class Room {
     if (this.phase !== 'selectMode' || playerIndex !== this.leader) return false;
     const validModes = ['hokm', 'nars', 'asNars', 'sars'];
     if (!validModes.includes(mode)) return false;
+    
+    this.clearTurnTimer();
+    
     if (mode === 'sars') {
       this.masterSuit = null;
       this.gameMode = 'sars';
@@ -170,11 +288,13 @@ class Room {
       let hasSuit = hand.some(c => c.s === leadSuit);
       if (hasSuit && card.s !== leadSuit) return null;
     }
+    
+    this.clearTurnTimer();
+    
     hand.splice(cardIndex, 1);
     this.playedCards.push({ p: playerIndex, c: card });
     this.turn = (this.turn + 1) % 4;
     
-    // Add to game history
     this.gameHistory.push({
       player: playerIndex,
       playerName: this.players[playerIndex].name,
@@ -186,6 +306,8 @@ class Room {
   }
 
   resolveRound() {
+    this.clearTurnTimer();
+    
     let winnerIndex = resolveRoundWinner(this.playedCards, this.gameMode, this.masterSuit);
     let w = this.playedCards[winnerIndex].p;
     let team = w % 2;
@@ -221,6 +343,8 @@ class Room {
   }
 
   endMatch() {
+    this.clearTurnTimer();
+    
     let pts = [this.roundPoints[0], this.roundPoints[1]];
     let leaderTeam = this.leader % 2;
     let otherTeam = 1 - leaderTeam;
@@ -233,7 +357,6 @@ class Room {
     }
     this.totalScores[otherTeam] += pts[otherTeam];
 
-    // Save match to history
     this.matchHistory.push({
       contract: this.contract,
       leader: this.leader,
@@ -249,7 +372,6 @@ class Room {
     this.gameHistory = [];
     this.opener = (this.opener + 1) % 4;
 
-    // Check if game is over (score limit reached)
     const gameOver = this.totalScores[0] >= this.scoreLimit || this.totalScores[1] >= this.scoreLimit;
     
     if (gameOver) {
@@ -274,6 +396,7 @@ class Room {
   }
 
   resetGame() {
+    this.clearTurnTimer();
     this.totalScores = [0, 0];
     this.matchHistory = [];
     this.gameHistory = [];
@@ -303,7 +426,8 @@ class Room {
       totalScores: this.totalScores,
       players: this.players.map(p => ({ name: p.name, connected: p.connected })),
       hostIndex: this.hostIndex,
-      scoreLimit: this.scoreLimit
+      scoreLimit: this.scoreLimit,
+      remainingTime: Math.ceil(this.getRemainingTime() / 1000)
     };
   }
 

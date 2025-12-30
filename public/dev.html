@@ -3,249 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>حالت توسعه - شلم</title>
+  <title>Dev Mode - شلم</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    #devPanel {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.9);
-      border: 2px solid #ffd700;
-      border-radius: 10px;
-      padding: 15px;
-      z-index: 9999;
-      max-width: 300px;
-      font-size: 12px;
+    #devBar{position:fixed;top:10px;left:10px;z-index:9999;display:flex;gap:8px}
+    #devBar button{background:#2a4a7a;color:#fff;border:none;padding:8px 15px;border-radius:8px;cursor:pointer}
+    #devBar button:hover{background:#3a6aaa}
+    
+    @keyframes cardDealIn{
+      0%{opacity:0;transform:translateX(-50%) rotate(var(--angle,0deg)) translateY(-30px)}
+      100%{opacity:1;transform:translateX(-50%) rotate(var(--angle,0deg)) translateY(0)}
     }
-    #devPanel h3 {
-      color: #ffd700;
-      margin: 0 0 10px 0;
-      font-size: 14px;
+    @keyframes oppDealIn{
+      0%{opacity:0;transform:translateY(-15px) scale(.8)}
+      100%{opacity:1;transform:translateY(0) scale(1)}
     }
-    #devPanel .section {
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #333;
+    @keyframes centerDealIn{
+      0%{opacity:0;transform:scale(.5)}
+      100%{opacity:1;transform:scale(1)}
     }
-    #devPanel .section-title {
-      color: #888;
-      font-size: 11px;
-      margin-bottom: 5px;
-    }
-    #devPanel button {
-      background: #2a4a7a;
-      color: white;
-      border: none;
-      padding: 6px 10px;
-      margin: 2px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 11px;
-    }
-    #devPanel button:hover {
-      background: #3a6aaa;
-    }
-    #devPanel button.primary {
-      background: #4a8a4a;
-    }
-    #devPanel button.danger {
-      background: #8a4a4a;
-    }
-    #devPanel select {
-      background: #1a2a4a;
-      color: white;
-      border: 1px solid #444;
-      padding: 5px;
-      border-radius: 5px;
-      width: 100%;
-      margin-bottom: 5px;
-    }
-    #devPanel .info {
-      color: #aaa;
-      font-size: 10px;
-      margin-top: 5px;
-    }
-    #togglePanel {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: #ffd700;
-      color: black;
-      border: none;
-      padding: 8px 15px;
-      border-radius: 5px;
-      cursor: pointer;
-      z-index: 10000;
-      font-weight: bold;
-    }
+    #myHand .card.deal{animation:cardDealIn .2s ease-out backwards}
+    .opponent-cards .card-back.deal{animation:oppDealIn .15s ease-out backwards}
+    #centerCards .card.deal{animation:centerDealIn .3s ease-out backwards}
+    #centerCards{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;gap:5px;z-index:50}
   </style>
 </head>
 <body>
-  <button id="togglePanel" onclick="toggleDevPanel()">🔧 Dev</button>
-  
-  <div id="devPanel">
-    <h3>🔧 پنل توسعه‌دهنده</h3>
-    
-    <div class="section">
-      <div class="section-title">شروع سریع</div>
-      <button class="primary" onclick="devQuickStart('playing')">▶️ بازی</button>
-      <button onclick="devQuickStart('proposing')">📢 پیشنهاد</button>
-      <button onclick="devQuickStart('exchanging')">🔄 تعویض</button>
-      <button onclick="devQuickStart('modeSelection')">🎯 انتخاب نوع</button>
-    </div>
-
-    <div class="section">
-      <div class="section-title">تنظیمات شروع</div>
-      <select id="devGameMode">
-        <option value="hokm">حکم</option>
-        <option value="nars">نَرس</option>
-        <option value="asNars">آس‌نَرس</option>
-        <option value="sars">سَرس</option>
-      </select>
-      <select id="devMasterSuit">
-        <option value="♠">♠ پیک</option>
-        <option value="♥">♥ دل</option>
-        <option value="♦">♦ خشت</option>
-        <option value="♣">♣ گشنیز</option>
-      </select>
-    </div>
-
-    <div class="section">
-      <div class="section-title">کنترل بات‌ها</div>
-      <button onclick="devBotPlay()">🤖 بازی یک بات</button>
-      <button class="primary" onclick="devBotPlayAll()">🤖🤖🤖 بازی همه بات‌ها</button>
-    </div>
-
-    <div class="section">
-      <div class="section-title">شبیه‌سازی</div>
-      <button onclick="devSimulateProposal()">📢 پیشنهادات</button>
-      <button onclick="devSimulateExchange()">🔄 تعویض</button>
-    </div>
-
-    <div class="section">
-      <div class="section-title">عملیات</div>
-      <button onclick="devRefresh()">🔄 رفرش وضعیت</button>
-      <button class="danger" onclick="location.reload()">🔁 ریستارت کامل</button>
-    </div>
-
-    <div class="info">
-      💡 کلیدهای میانبر:<br>
-      B = بازی بات | R = رفرش | P = شروع بازی
-    </div>
+  <div id="devBar">
+    <button onclick="startGame()">▶️ شروع</button>
+    <button onclick="resetGame()">🔄 ریست</button>
   </div>
 
-  <div id="lobby" style="display:none"></div>
-  
-  <div id="game" style="display:none">
-    <div id="proposalOverlay" class="proposal-overlay" style="display:none">
-      <div id="waitingMessage" class="waiting-message"></div>
-    </div>
+  <div id="game" style="display:flex">
     <div id="topBar">
-      <div class="score-item team1">
-        <span class="team-label">تیم ۱</span>
-        <span class="score-value" id="score0">0</span>
-      </div>
-      <div class="game-info">
-        <div id="contractDisplay"></div>
-        <div id="trumpDisplay"></div>
-      </div>
-      <div class="score-item team2">
-        <span class="team-label">تیم ۲</span>
-        <span class="score-value" id="score1">0</span>
-      </div>
+      <div class="score-item team1"><span class="team-label">تیم ۱</span><span class="score-value" id="score0">0</span></div>
+      <div class="game-info"><div id="trumpDisplay"></div></div>
+      <div class="score-item team2"><span class="team-label">تیم ۲</span><span class="score-value" id="score1">0</span></div>
     </div>
-    <div id="voiceControls" style="display:none"></div>
+
     <div id="playerTop" class="opponent top">
-      <div class="opponent-info">
-        <span class="opponent-name"></span>
-        <span class="card-count"></span>
-      </div>
+      <div class="opponent-info"><span class="opponent-name"></span><span class="card-count"></span></div>
       <div class="opponent-cards"></div>
     </div>
     <div id="playerLeft" class="opponent left">
-      <div class="opponent-info">
-        <span class="opponent-name"></span>
-        <span class="card-count"></span>
-      </div>
+      <div class="opponent-info"><span class="opponent-name"></span><span class="card-count"></span></div>
       <div class="opponent-cards"></div>
     </div>
     <div id="playerRight" class="opponent right">
-      <div class="opponent-info">
-        <span class="opponent-name"></span>
-        <span class="card-count"></span>
-      </div>
+      <div class="opponent-info"><span class="opponent-name"></span><span class="card-count"></span></div>
       <div class="opponent-cards"></div>
     </div>
+
     <div id="tableCenter">
-      <div id="dropZone">
-        <div id="playedCards"></div>
-        <div id="dropHint" style="display:none">🎴 کارت را اینجا رها کنید</div>
-      </div>
-      <div id="statusMessage"></div>
+      <div id="centerCards"></div>
+      <div id="dropZone"><div id="playedCards"></div></div>
     </div>
     <div id="gameLog"></div>
     <div id="myHandArea">
-      <div id="myInfo">
-        <span id="myName"></span>
-        <span id="turnIndicator"></span>
-      </div>
+      <div id="myInfo"><span id="myName">شما</span><span id="turnIndicator"></span></div>
       <div id="myHand"></div>
-    </div>
-    <div id="controls"></div>
-    <div id="proposalPanel" class="proposal-panel" style="display:none">
-      <div class="proposal-header">
-        <h3>📢 انتخاب قرارداد</h3>
-        <div id="proposalLogMini" class="proposal-log-mini"></div>
-      </div>
-      <div id="proposalGrid" class="proposal-grid"></div>
-      <button class="btn-pass-big" onclick="passProposal()">❌ پاس</button>
-    </div>
-  </div>
-
-  <div id="modeModal" class="modal" style="display:none">
-    <div class="modal-content mode-modal">
-      <h3>🎯 انتخاب نوع بازی</h3>
-      <div class="mode-options">
-        <label class="mode-option">
-          <input type="radio" name="gameMode" value="hokm">
-          <div class="mode-card">
-            <div class="mode-title">👑 حکم</div>
-            <div class="mode-desc">آس قوی‌ترین</div>
-          </div>
-        </label>
-        <label class="mode-option">
-          <input type="radio" name="gameMode" value="nars">
-          <div class="mode-card">
-            <div class="mode-title">⬇️ نَرس</div>
-            <div class="mode-desc">دولو قوی‌ترین</div>
-          </div>
-        </label>
-        <label class="mode-option">
-          <input type="radio" name="gameMode" value="asNars">
-          <div class="mode-card">
-            <div class="mode-title">🅰️ آس‌نَرس</div>
-            <div class="mode-desc">آس قوی، شاه ضعیف</div>
-          </div>
-        </label>
-        <label class="mode-option">
-          <input type="radio" name="gameMode" value="sars">
-          <div class="mode-card">
-            <div class="mode-title">🚫 سَرس</div>
-            <div class="mode-desc">بدون حکم</div>
-          </div>
-        </label>
-      </div>
-      <div id="suitSelector" class="suit-selector" style="display:none">
-        <p>خال حکم:</p>
-        <div class="suits">
-          <button class="suit-btn" data-suit="♠" onclick="selectSuit('♠')">♠</button>
-          <button class="suit-btn red" data-suit="♥" onclick="selectSuit('♥')">♥</button>
-          <button class="suit-btn red" data-suit="♦" onclick="selectSuit('♦')">♦</button>
-          <button class="suit-btn" data-suit="♣" onclick="selectSuit('♣')">♣</button>
-        </div>
-      </div>
-      <button id="confirmModeBtn" onclick="confirmMode()" disabled>انتخاب کنید</button>
     </div>
   </div>
 
@@ -257,82 +73,189 @@
     </div>
   </div>
 
-  <div id="endModal" class="modal" style="display:none">
-    <div class="modal-content end-modal">
-      <h2 id="endTitle"></h2>
-      <div id="endDetails"></div>
-      <button onclick="playAgain()">🔄 بازی مجدد</button>
-    </div>
-  </div>
-
-  <div id="audioContainer" style="display:none"></div>
-
   <script src="/socket.io/socket.io.js"></script>
-  <script src="js/app.js"></script>
   <script>
-    // Dev Mode Functions
-    let devPanelVisible = true;
+const socket = io();
+let state = null;
+let dealing = false;
 
-    function toggleDevPanel() {
-      devPanelVisible = !devPanelVisible;
-      document.getElementById('devPanel').style.display = devPanelVisible ? 'block' : 'none';
-    }
+socket.on('connect', () => socket.emit('devJoin'));
+socket.on('error', msg => alert(msg));
 
-    function devQuickStart(phase) {
-      const options = {
-        phase: phase,
-        gameMode: document.getElementById('devGameMode').value,
-        masterSuit: document.getElementById('devMasterSuit').value,
-        contract: 100
-      };
-      socket.emit('devQuickStart', options);
-    }
+socket.on('gameState', s => {
+  const wasWaiting = !state || state.phase === 'waiting' || state.phase === 'ended';
+  const isPlaying = s.phase === 'playing';
+  state = s;
+  
+  if (wasWaiting && isPlaying && !dealing) {
+    dealCards();
+  } else if (!dealing) {
+    render();
+  }
+});
 
-    function devBotPlay() {
-      socket.emit('devBotPlay');
-    }
+socket.on('roundResult', data => {
+  document.getElementById('resultTitle').textContent = `🏆 ${data.winnerName} برد!`;
+  document.getElementById('resultCards').innerHTML = data.cards.map(p => 
+    `<div class="${p.isWinner?'winner':''}">${cardHtml(p.c,'small')}</div>`
+  ).join('');
+  document.getElementById('resultPoints').textContent = `امتیاز: ${data.points}`;
+  showModal('resultModal');
+  setTimeout(() => hideModal('resultModal'), 1500);
+});
 
-    function devBotPlayAll() {
-      socket.emit('devBotPlayAll');
-    }
+function startGame() { if(!dealing) socket.emit('devStart'); }
+function resetGame() { if(!dealing) socket.emit('devReset'); }
 
-    function devSimulateProposal() {
-      socket.emit('devSimulateProposal');
-    }
-
-    function devSimulateExchange() {
-      socket.emit('devSimulateExchange');
-    }
-
-    function devRefresh() {
-      socket.emit('devRefresh');
-    }
-
-    // Auto-join on load
-    window.addEventListener('load', () => {
-      socket.emit('devJoin');
-      document.getElementById('game').style.display = 'flex';
-    });
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'INPUT') return;
-      
-      switch(e.key.toLowerCase()) {
-        case 'b':
-          devBotPlayAll();
-          break;
-        case 'r':
-          devRefresh();
-          break;
-        case 'p':
-          devQuickStart('playing');
-          break;
-        case 'd':
-          toggleDevPanel();
-          break;
+async function dealCards() {
+  dealing = true;
+  const delay = 80; // ms per card
+  const playerDelay = 300; // ms between players
+  
+  // Clear everything first
+  document.getElementById('myHand').innerHTML = '';
+  document.getElementById('centerCards').innerHTML = '';
+  ['Top','Left','Right'].forEach(p => {
+    document.getElementById('player'+p).querySelector('.opponent-cards').innerHTML = '';
+  });
+  
+  // Deal order: 0(me), 1(right), 2(top), 3(left)
+  const positions = ['myHand', 'playerRight', 'playerTop', 'playerLeft'];
+  const counts = [state.handCounts[0], state.handCounts[1], state.handCounts[2], state.handCounts[3]];
+  
+  for (let p = 0; p < 4; p++) {
+    const count = counts[p];
+    
+    if (p === 0) {
+      // My hand - deal one by one
+      for (let i = 0; i < count; i++) {
+        addMyCard(i, count, i * delay);
+        await wait(delay);
       }
-    });
+    } else {
+      // Opponents - deal one by one
+      const container = document.getElementById(positions[p]).querySelector('.opponent-cards');
+      for (let i = 0; i < Math.min(count, 6); i++) {
+        const card = document.createElement('div');
+        card.className = 'card-back deal';
+        card.style.animationDelay = `${i * 30}ms`;
+        container.appendChild(card);
+        await wait(30);
+      }
+    }
+    await wait(playerDelay);
+  }
+  
+  // Show center cards (4 cards)
+  await wait(200);
+  const centerEl = document.getElementById('centerCards');
+  for (let i = 0; i < 4; i++) {
+    const card = document.createElement('div');
+    card.className = 'card-back deal';
+    card.style.animationDelay = `${i * 100}ms`;
+    card.style.width = '40px';
+    card.style.height = '58px';
+    centerEl.appendChild(card);
+    await wait(100);
+  }
+  
+  await wait(500);
+  dealing = false;
+  render();
+}
+
+function addMyCard(index, total, delayMs) {
+  const hand = state.hand;
+  if (!hand[index]) return;
+  
+  const c = hand[index];
+  const w = window.innerWidth < 400 ? 50 : 60;
+  const angle = Math.min(50, total * 4);
+  const step = total > 1 ? angle/(total-1) : 0;
+  const a = -angle/2 + index*step;
+  const color = ['♥','♦'].includes(c.s) ? 'red' : 'black';
+  
+  const cardEl = document.createElement('div');
+  cardEl.className = `card ${color} deal`;
+  cardEl.setAttribute('data-i', index);
+  cardEl.style.cssText = `--angle:${a}deg;--fan-radius:350px;width:${w}px;height:${w*1.45}px;z-index:${index+1};animation-delay:${delayMs}ms`;
+  cardEl.onclick = () => play(index);
+  cardEl.innerHTML = `
+    <div class="corner corner-top"><span class="rank">${c.v}</span><span class="suit-icon">${c.s}</span></div>
+    <span class="center-suit">${c.s}</span>
+    <div class="corner corner-bottom"><span class="rank">${c.v}</span><span class="suit-icon">${c.s}</span></div>
+  `;
+  document.getElementById('myHand').appendChild(cardEl);
+}
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function render() {
+  if (!state) return;
+  
+  document.getElementById('score0').textContent = state.totalScores[0];
+  document.getElementById('score1').textContent = state.totalScores[1];
+  document.getElementById('trumpDisplay').innerHTML = `حکم: <span style="color:${['♥','♦'].includes(state.masterSuit)?'red':'#fff'}">${state.masterSuit}</span>`;
+  document.getElementById('turnIndicator').textContent = state.turn === 0 ? '🎯 نوبت شما' : '';
+  document.getElementById('game').classList.toggle('my-turn', state.turn === 0);
+  
+  // Hide center cards during play
+  document.getElementById('centerCards').innerHTML = '';
+
+  // Opponents
+  [['Top',2],['Left',3],['Right',1]].forEach(([pos,idx]) => {
+    const el = document.getElementById('player'+pos);
+    el.querySelector('.opponent-name').textContent = state.players[idx]?.name || '';
+    el.querySelector('.card-count').textContent = state.handCounts[idx];
+    el.classList.toggle('turn', state.turn === idx);
+    el.querySelector('.opponent-cards').innerHTML = Array(Math.min(state.handCounts[idx],6)).fill('<div class="card-back"></div>').join('');
+  });
+
+  // Played cards
+  document.getElementById('playedCards').innerHTML = state.playedCards.map(pc => 
+    `<div class="played-card pos-${pc.p}">${cardHtml(pc.c,'small')}</div>`
+  ).join('');
+
+  // My hand
+  renderMyHand();
+}
+
+function renderMyHand() {
+  const hand = state.hand || [];
+  const w = window.innerWidth < 400 ? 50 : 60;
+  const angle = Math.min(50, hand.length * 4);
+  const step = hand.length > 1 ? angle/(hand.length-1) : 0;
+  
+  document.getElementById('myHand').innerHTML = hand.map((c,i) => {
+    const a = -angle/2 + i*step;
+    const color = ['♥','♦'].includes(c.s) ? 'red' : 'black';
+    const disabled = state.turn !== 0 ? 'disabled' : '';
+    return `<div class="card ${color} ${disabled}" data-i="${i}" 
+      style="--angle:${a}deg;--fan-radius:350px;width:${w}px;height:${w*1.45}px;z-index:${i+1}" 
+      onclick="play(${i})">
+      <div class="corner corner-top"><span class="rank">${c.v}</span><span class="suit-icon">${c.s}</span></div>
+      <span class="center-suit">${c.s}</span>
+      <div class="corner corner-bottom"><span class="rank">${c.v}</span><span class="suit-icon">${c.s}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function play(i) { if (state?.turn === 0 && !dealing) socket.emit('playCard', i); }
+function showModal(id) { document.getElementById(id).style.display = 'flex'; }
+function hideModal(id) { document.getElementById(id).style.display = 'none'; }
+function cardHtml(c, size='') {
+  const color = ['♥','♦'].includes(c.s) ? 'red' : 'black';
+  return `<div class="card ${color} ${size}">
+    <div class="corner corner-top"><span class="rank">${c.v}</span><span class="suit-icon">${c.s}</span></div>
+    <span class="center-suit">${c.s}</span>
+    <div class="corner corner-bottom"><span class="rank">${c.v}</span><span class="suit-icon">${c.s}</span></div>
+  </div>`;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 's') startGame();
+  if (e.key === 'r') resetGame();
+});
   </script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 const socket = io();
 
+// === Global Variables ===
 let myIndex = -1;
 let state = null;
 let selected = [];
@@ -8,25 +9,36 @@ let playerNames = [];
 let isHost = false;
 let scoreLimit = 500;
 
-// Drag variables
+// === Drag variables ===
 let draggedCard = null;
 let draggedCardEl = null;
 let draggedIndex = -1;
 let touchStartTime = 0;
 let isTouchDevice = false;
 
+// === Timer Variables (New) ===
+let timerInterval = null;
+let remainingTime = 30;
+// Add after existing variables
+
+
+// === Socket Connection ===
 socket.on('connect', () => console.log('Connected'));
 
 socket.on('error', msg => {
   alert(msg);
 });
 
+// === Room Events ===
 socket.on('roomCreated', async data => {
   myIndex = data.index;
   isHost = data.isHost;
   scoreLimit = data.scoreLimit;
   showWaitingRoom();
-  await initVoiceChat(socket, myIndex);
+  // فرض بر این است که initVoiceChat در فایل دیگری یا همین فایل تعریف شده است
+  if (typeof initVoiceChat === 'function') {
+      await initVoiceChat(socket, myIndex);
+  }
 });
 
 socket.on('roomJoined', async data => {
@@ -37,7 +49,9 @@ socket.on('roomJoined', async data => {
   if (data.isRejoin) {
     addLog('اتصال مجدد برقرار شد', 'info');
   }
-  await initVoiceChat(socket, myIndex);
+  if (typeof initVoiceChat === 'function') {
+      await initVoiceChat(socket, myIndex);
+  }
 });
 
 socket.on('updatePlayerList', players => {
@@ -52,6 +66,7 @@ socket.on('gameState', data => {
   render();
 });
 
+// === Game Events ===
 socket.on('proposalUpdate', data => {
   const text = data.action === 'call' ? `${data.name}: ${data.value}` : `${data.name}: پاس`;
   const type = data.action === 'call' ? 'call' : 'pass';
@@ -72,8 +87,27 @@ socket.on('modeSelected', data => {
   addLog(`🎯 ${data.name}: ${modeName}${suitText}`, 'info');
 });
 
-socket.on('cardAction', data => {});
+socket.on('cardAction', data => {
+    // اگر لاجیک خاصی برای انیمیشن کارت‌ها دارید اینجا قرار می‌گیرد
+});
 
+// === Timer & Bot Events (New) ===
+socket.on('timerStart', data => {
+  startTimerUI(data.duration);
+});
+
+socket.on('botAction', data => {
+  const actionText = data.result.isBot ? '🤖' : '';
+  if (data.result.action === 'playCard') {
+    addLog(`${actionText} ${data.name} (خودکار) کارت بازی کرد`, 'info');
+  } else if (data.result.action === 'pass') {
+    addLog(`${actionText} ${data.name} (خودکار) پاس کرد`, 'pass');
+  } else if (data.result.action === 'call') {
+    addLog(`${actionText} ${data.name} (خودکار): ${data.result.value}`, 'call');
+  }
+});
+
+// === Result Events ===
 socket.on('roundResult', data => {
   showRoundResult(data);
 });
@@ -104,7 +138,7 @@ socket.on('playerDisconnected', data => {
   addLog(`❌ ${data.name} قطع شد`, 'info');
 });
 
-// Lobby functions
+// === Lobby Functions ===
 function showCreateForm() {
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('createForm').style.display = 'block';
@@ -162,6 +196,7 @@ function setReady() {
   document.getElementById('readyBtn').textContent = '⏳ منتظر بقیه...';
 }
 
+// === Game Actions ===
 function clickCard(index) {
   if (!state) return;
   if (state.phase === 'exchange' && state.myIndex === state.leader) {
@@ -227,9 +262,11 @@ function resetGame() {
   socket.emit('resetGame');
 }
 
-function render() {
-  if (!state) return;
+// === Render Function (Updated) ===
 
+function render(){
+  if (!state) return;
+  
   const gameEl = document.getElementById('game');
   const isMyTurn = state.turn === state.myIndex;
   const isProposing = state.phase === 'propose';
@@ -239,7 +276,10 @@ function render() {
 
   document.getElementById('score0').textContent = state.totalScores[0];
   document.getElementById('score1').textContent = state.totalScores[1];
-  document.getElementById('scoreLimitGame').textContent = `سقف: ${state.scoreLimit}`;
+  
+  if (document.getElementById('scoreLimitGame')) {
+    document.getElementById('scoreLimitGame').textContent = `سقف: ${state.scoreLimit || 500}`;
+  }
 
   if (state.contract > 100) {
     document.getElementById('contractDisplay').textContent = `قرارداد: ${state.contract}`;
@@ -261,11 +301,24 @@ function render() {
   renderMyHand();
   renderControls();
 
+  // Animate cards after dealing
+  if (dealingAnimation.isDealing === false && isFirstRender) {
+    isFirstRender = false;
+    setTimeout(() => {
+      dealingAnimation.animateHand(document.getElementById('myHand'));
+      ['Top', 'Left', 'Right'].forEach(pos => {
+        dealingAnimation.animateOpponent(document.getElementById('player' + pos));
+      });
+    }, 100);
+  }
+
   const dropHint = document.getElementById('dropHint');
-  if (isMyTurn && state.phase === 'playing' && state.playedCards.length < 4) {
-    dropHint.style.display = 'block';
-  } else {
-    dropHint.style.display = 'none';
+  if (dropHint) {
+    if (isMyTurn && state.phase === 'playing' && state.playedCards.length < 4) {
+      dropHint.style.display = 'block';
+    } else {
+      dropHint.style.display = 'none';
+    }
   }
 
   if (state.phase === 'propose') {
@@ -285,14 +338,15 @@ function render() {
     }
   } else {
     hideProposalPanel();
-    document.getElementById('proposalOverlay').style.display = 'none';
+    const overlay = document.getElementById('proposalOverlay');
+    if (overlay) overlay.style.display = 'none';
   }
 
   if (state.phase === 'selectMode' && state.leader === state.myIndex) {
     showModal('modeModal');
   }
 }
-
+// === Rendering Helpers ===
 function renderPlayerList(players) {
   const container = document.getElementById('playersList');
   let html = '';
@@ -435,6 +489,7 @@ function renderMyHand() {
   setupCardInteractions();
 }
 
+// === Interaction Handlers ===
 function setupCardInteractions() {
   const cards = document.querySelectorAll('#myHand .card');
   cards.forEach(card => {
@@ -838,6 +893,7 @@ function showGameOver(data) {
   showModal('gameOverModal');
 }
 
+// === DOM & Window Events ===
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('input[name="gameMode"]').forEach(radio => {
     radio.addEventListener('change', function() {
@@ -864,3 +920,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// === Helper Functions for Timer (New) ===
+function startTimerUI(duration) {
+  stopTimerUI();
+  remainingTime = duration;
+  updateTimerDisplay();
+  
+  timerInterval = setInterval(() => {
+    remainingTime--;
+    updateTimerDisplay();
+    
+    if (remainingTime <= 0) {
+      stopTimerUI();
+    }
+  }, 1000);
+}
+
+function stopTimerUI() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function updateTimerDisplay() {
+  const timerEl = document.getElementById('turnTimer');
+  if (!timerEl) return;
+  
+  // اگر نوبت ما نیست یا state نداریم، شاید بخواهیم تایمر را مخفی کنیم
+  // اما در کد اصلی شما چک می‌کند که turn === myIndex باشد
+  if (!state || state.turn !== state.myIndex) {
+    timerEl.style.display = 'none';
+    return;
+  }
+  
+  timerEl.style.display = 'block';
+  timerEl.textContent = `⏱️ ${remainingTime}`;
+  
+  // تغییر رنگ بر اساس زمان باقیمانده
+  if (remainingTime <= 5) {
+    timerEl.classList.add('critical');
+    timerEl.classList.remove('warning');
+  } else if (remainingTime <= 10) {
+    timerEl.classList.add('warning');
+    timerEl.classList.remove('critical');
+  } else {
+    timerEl.classList.remove('warning', 'critical');
+  }
+}

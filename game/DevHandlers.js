@@ -1,126 +1,85 @@
 const DevRoom = require('./DevRoom');
 
-let devRoom = null;
+let room = null;
 
 function setupDevHandlers(io) {
   io.on('connection', socket => {
     socket.on('devJoin', () => {
-      devRoom = new DevRoom();
+      room = new DevRoom();
       socket.join('dev');
-      socket.emit('joined', { index: 0, isRejoin: false });
-      socket.emit('updatePlayerList', devRoom.getPlayerList());
+      socket.emit('joined', { index: 0 });
     });
 
-    socket.on('devQuickStart', (options = {}) => {
-      if (!devRoom) return;
-      const state = devRoom.quickStart(options.phase || 'playing', options);
-      socket.emit('gameState', state);
+    socket.on('devStart', () => {
+      if (!room) return;
+      socket.emit('gameState', room.startGame());
     });
 
-    socket.on('devSetPhase', phase => {
-      if (!devRoom) return;
-      const state = devRoom.setPhase(phase);
-      socket.emit('gameState', state);
-    });
-
-    socket.on('devBotPlay', () => {
-      if (!devRoom) return;
-      const result = devRoom.botPlay();
-      if (result) {
-        socket.emit('cardAction', {
-          player: result.botIndex,
-          name: `بات ${result.botIndex}`,
-          card: result.card
-        });
-        
-        if (result.type === 'roundComplete') {
-          setTimeout(() => {
-            const roundResult = devRoom.resolveRound();
-            socket.emit('roundResult', roundResult);
-            setTimeout(() => {
-              socket.emit('gameState', devRoom.getStateForPlayer(0));
-            }, 500);
-          }, 300);
-        } else {
-          socket.emit('gameState', devRoom.getStateForPlayer(0));
-        }
-      }
-    });
-
-    socket.on('devBotPlayAll', () => {
-      if (!devRoom) return;
+    socket.on('playCard', index => {
+      if (!room) return;
+      const card = room.playCard(index);
       
-      const playNext = () => {
-        if (devRoom.turn === 0 || devRoom.playedCards.length === 4) return;
-        
-        const result = devRoom.botPlay();
-        if (result) {
-          socket.emit('cardAction', {
-            player: result.botIndex,
-            name: `بات ${result.botIndex}`,
-            card: result.card
-          });
-          
-          if (result.type === 'roundComplete') {
-            setTimeout(() => {
-              const roundResult = devRoom.resolveRound();
-              socket.emit('roundResult', roundResult);
-              setTimeout(() => {
-                socket.emit('gameState', devRoom.getStateForPlayer(0));
-              }, 500);
-            }, 300);
-          } else {
-            setTimeout(playNext, 400);
-          }
-        }
-      };
-      
-      playNext();
-    });
-
-    socket.on('playCard', cardIndex => {
-      if (!devRoom) return;
-      const card = devRoom.playCard(cardIndex);
-      if (card) {
-        socket.emit('cardAction', {
-          player: 0,
-          name: 'توسعه‌دهنده',
-          card
-        });
-        socket.emit('gameState', devRoom.getStateForPlayer(0));
-        
-        // اگر 4 کارت شد
-        if (devRoom.playedCards.length === 4) {
-          setTimeout(() => {
-            const result = devRoom.resolveRound();
-            socket.emit('roundResult', result);
-            setTimeout(() => {
-              socket.emit('gameState', devRoom.getStateForPlayer(0));
-            }, 500);
-          }, 300);
-        }
-      } else if (card === false) {
-        socket.emit('error', 'باید کارت همخال بازی کنید');
+      if (card === false) {
+        socket.emit('error', 'باید همخال بازی کنید');
+        return;
       }
+      if (!card) return;
+
+      socket.emit('cardPlayed', { player: 0, card });
+      socket.emit('gameState', room.getState());
+
+      // Auto-play bots
+      playBots(socket);
     });
 
-    socket.on('devSimulateProposal', () => {
-      if (!devRoom) return;
-      const state = devRoom.simulateProposal();
-      socket.emit('gameState', state);
-    });
-
-    socket.on('devSimulateExchange', () => {
-      if (!devRoom) return;
-      const state = devRoom.simulateExchange();
-      socket.emit('gameState', state);
-    });
-
-    socket.on('devRefresh', () => {
-      if (!devRoom) return;
-      socket.emit('gameState', devRoom.getStateForPlayer(0));
+    socket.on('devReset', () => {
+      if (!room) return;
+      room.reset();
+      socket.emit('gameState', room.startGame());
     });
   });
+}
+
+function playBots(socket) {
+  const playNext = () => {
+    if (!room || room.turn === 0) return;
+    if (room.playedCards.length >= 4) {
+      finishRound(socket);
+      return;
+    }
+
+    setTimeout(() => {
+      const result = room.botPlay();
+      if (result) {
+        socket.emit('cardPlayed', { player: result.botIndex, card: result.card });
+        socket.emit('gameState', room.getState());
+        
+        if (result.isRoundComplete) {
+          finishRound(socket);
+        } else {
+          playNext();
+        }
+      }
+    }, 600);
+  };
+  
+  playNext();
+}
+
+function finishRound(socket) {
+  setTimeout(() => {
+    const result = room.resolveRound();
+    socket.emit('roundResult', result);
+    
+    setTimeout(() => {
+      socket.emit('gameState', room.getState());
+      
+      // If it's bot's turn, continue
+      if (room.phase === 'playing' && room.turn !== 0) {
+        playBots(socket);
+      }
+    }, 1500);
+  }, 500);
 }
 
 module.exports = { setupDevHandlers };
