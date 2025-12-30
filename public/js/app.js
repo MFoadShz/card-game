@@ -20,6 +20,10 @@ let isTouchDevice = false;
 let timerInterval = null;
 let remainingTime = 30;
 
+// === Dealing Animation Variables ===
+let previousPhase = null;
+let isDealing = false;
+
 // === Socket Connection ===
 socket.on('connect', () => console.log('Connected'));
 
@@ -57,10 +61,22 @@ socket.on('updatePlayerList', players => {
 });
 
 socket.on('gameState', data => {
+  // تشخیص شروع بازی جدید (انتقال از wait به propose)
+  const wasWaiting = !state || state.phase === 'wait' || state.phase === 'finished';
+  const isNewGame = wasWaiting && data.phase === 'propose';
+  
   state = data;
   document.getElementById('lobby').style.display = 'none';
   document.getElementById('game').style.display = 'flex';
-  render();
+  
+  if (isNewGame && !isDealing) {
+    // شروع انیمیشن توزیع کارت‌ها
+    startDealingAnimation();
+  } else if (!isDealing) {
+    render();
+  }
+  
+  previousPhase = data.phase;
 });
 
 // === Game Events ===
@@ -85,7 +101,7 @@ socket.on('modeSelected', data => {
 });
 
 socket.on('cardAction', data => {
-  // اگر لاجیک خاصی برای انیمیشن کارت‌ها دارید اینجا قرار می‌گیرد
+  // انیمیشن کارت بازی شده
 });
 
 // === Timer & Bot Events ===
@@ -123,6 +139,8 @@ socket.on('gameReset', () => {
   hideModal('gameOverModal');
   document.getElementById('lobby').style.display = 'flex';
   document.getElementById('game').style.display = 'none';
+  previousPhase = null;
+  isDealing = false;
   showWaitingRoom();
 });
 
@@ -134,6 +152,184 @@ socket.on('proposalRestart', data => {
 socket.on('playerDisconnected', data => {
   addLog(`❌ ${data.name} قطع شد`, 'info');
 });
+
+// === Dealing Animation ===
+function startDealingAnimation() {
+  isDealing = true;
+  
+  // ابتدا صفحه بازی را نمایش می‌دهیم بدون کارت
+  renderGameBoard();
+  
+  // نمایش پیام توزیع
+  showDealingMessage();
+  
+  // شروع انیمیشن با تاخیر
+  setTimeout(() => {
+    renderCardsWithAnimation();
+  }, 500);
+}
+
+function showDealingMessage() {
+  const msg = document.createElement('div');
+  msg.id = 'dealingMsg';
+  msg.className = 'dealing-message';
+  msg.textContent = '🎴 در حال توزیع کارت‌ها...';
+  document.body.appendChild(msg);
+}
+
+function hideDealingMessage() {
+  const msg = document.getElementById('dealingMsg');
+  if (msg) msg.remove();
+}
+
+function renderGameBoard() {
+  // رندر بخش‌های ثابت بدون کارت
+  const gameEl = document.getElementById('game');
+  gameEl.classList.remove('my-turn');
+  gameEl.classList.add('game-proposing');
+  
+  document.getElementById('score0').textContent = state.totalScores[0];
+  document.getElementById('score1').textContent = state.totalScores[1];
+  
+  if (document.getElementById('scoreLimitGame')) {
+    document.getElementById('scoreLimitGame').textContent = `سقف: ${state.scoreLimit || 500}`;
+  }
+  
+  document.getElementById('contractDisplay').textContent = '';
+  document.getElementById('trumpDisplay').textContent = '';
+  
+  // رندر اطلاعات حریفان بدون کارت
+  renderOpponentsInfo();
+  
+  // خالی کردن دست من
+  document.getElementById('myHand').innerHTML = '';
+  document.getElementById('playedCards').innerHTML = '';
+  
+  // نمایش نام من
+  const myName = playerNames[myIndex] || 'شما';
+  document.getElementById('myName').textContent = myName;
+  document.getElementById('turnIndicator').textContent = '';
+  
+  // مخفی کردن پنل پیشنهاد در حین انیمیشن
+  hideProposalPanel();
+  const overlay = document.getElementById('proposalOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function renderOpponentsInfo() {
+  const positions = ['top', 'left', 'right'];
+  const relativeIndices = [
+    (myIndex + 2) % 4,
+    (myIndex + 3) % 4,
+    (myIndex + 1) % 4
+  ];
+  
+  positions.forEach((pos, i) => {
+    const pIndex = relativeIndices[i];
+    const elem = document.getElementById('player' + pos.charAt(0).toUpperCase() + pos.slice(1));
+    const name = state.players[pIndex]?.name || '---';
+    const count = state.handCounts[pIndex] || 0;
+    
+    elem.classList.remove('turn', 'leader');
+    elem.querySelector('.opponent-name').textContent = name;
+    elem.querySelector('.card-count').textContent = count;
+    elem.querySelector('.opponent-cards').innerHTML = '';
+  });
+}
+
+function renderCardsWithAnimation() {
+  const hand = state.hand || [];
+  const container = document.getElementById('myHand');
+  
+  // محاسبه سایز کارت
+  const viewportWidth = window.innerWidth;
+  let cardWidth;
+  if (viewportWidth < 350) cardWidth = 48;
+  else if (viewportWidth < 400) cardWidth = 54;
+  else if (viewportWidth < 500) cardWidth = 60;
+  else cardWidth = 68;
+  
+  const cardHeight = Math.round(cardWidth * 1.45);
+  const cardCount = hand.length;
+  const totalAngle = Math.min(55, 4 + cardCount * 4);
+  const angleStep = cardCount > 1 ? totalAngle / (cardCount - 1) : 0;
+  const startAngle = -totalAngle / 2;
+  const fanRadius = Math.max(280, 400 - cardCount * 8);
+  
+  // ایجاد کارت‌های دست من با انیمیشن
+  hand.forEach((card, i) => {
+    setTimeout(() => {
+      const angle = startAngle + (i * angleStep);
+      const zIndex = i + 1;
+      const color = ['♥', '♦'].includes(card.s) ? 'red' : 'black';
+      
+      const cardEl = document.createElement('div');
+      cardEl.className = `card ${color} disabled deal-anim`;
+      cardEl.dataset.index = i;
+      cardEl.style.cssText = `
+        --angle: ${angle}deg;
+        --fan-radius: ${fanRadius}px;
+        width: ${cardWidth}px;
+        height: ${cardHeight}px;
+        z-index: ${zIndex};
+        animation-delay: 0ms;
+      `;
+      cardEl.innerHTML = `
+        <div class="corner corner-top">
+          <span class="rank">${card.v}</span>
+          <span class="suit-icon">${card.s}</span>
+        </div>
+        <span class="center-suit">${card.s}</span>
+        <div class="corner corner-bottom">
+          <span class="rank">${card.v}</span>
+          <span class="suit-icon">${card.s}</span>
+        </div>
+      `;
+      
+      container.appendChild(cardEl);
+      
+      // صدای کارت (اختیاری)
+      // playCardSound();
+      
+    }, i * 80); // تاخیر 80 میلی‌ثانیه بین هر کارت
+  });
+  
+  // انیمیشن کارت‌های حریفان
+  const positions = ['Top', 'Left', 'Right'];
+  const relativeIndices = [
+    (myIndex + 2) % 4,
+    (myIndex + 3) % 4,
+    (myIndex + 1) % 4
+  ];
+  
+  positions.forEach((pos, pi) => {
+    const pIndex = relativeIndices[pi];
+    const count = state.handCounts[pIndex] || 0;
+    const displayCount = Math.min(count, 6);
+    const elem = document.getElementById('player' + pos);
+    const cardsContainer = elem.querySelector('.opponent-cards');
+    
+    for (let j = 0; j < displayCount; j++) {
+      setTimeout(() => {
+        const cardBack = document.createElement('div');
+        cardBack.className = 'card-back deal-anim';
+        cardBack.style.animationDelay = '0ms';
+        cardsContainer.appendChild(cardBack);
+      }, (pi * 300) + (j * 50)); // تاخیر برای هر بازیکن و هر کارت
+    }
+  });
+  
+  // پایان انیمیشن و شروع بازی
+  const totalDelay = Math.max(hand.length * 80, 3 * 300 + 6 * 50) + 500;
+  
+  setTimeout(() => {
+    hideDealingMessage();
+    isDealing = false;
+    
+    // حذف کلاس انیمیشن و رندر کامل
+    render();
+  }, totalDelay);
+}
 
 // === Lobby Functions ===
 function showCreateForm() {
@@ -195,7 +391,7 @@ function setReady() {
 
 // === Game Actions ===
 function clickCard(index) {
-  if (!state) return;
+  if (!state || isDealing) return;
   if (state.phase === 'exchange' && state.myIndex === state.leader) {
     if (selected.includes(index)) {
       selected = selected.filter(i => i !== index);
@@ -261,7 +457,7 @@ function resetGame() {
 
 // === Render Function ===
 function render() {
-  if (!state) return;
+  if (!state || isDealing) return;
 
   const gameEl = document.getElementById('game');
   const isMyTurn = state.turn === state.myIndex;
@@ -489,7 +685,7 @@ function setupCardInteractions() {
 }
 
 function handleCardClick(e) {
-  if (isTouchDevice) return;
+  if (isTouchDevice || isDealing) return;
   const card = e.target.closest('.card');
   if (!card || card.classList.contains('disabled')) return;
   const index = parseInt(card.dataset.index);
@@ -498,6 +694,7 @@ function handleCardClick(e) {
 }
 
 function handleTouchStart(e) {
+  if (isDealing) return;
   isTouchDevice = true;
   const card = e.target.closest('.card');
   if (!card || card.classList.contains('disabled')) return;
@@ -516,7 +713,7 @@ function handleTouchStart(e) {
 }
 
 function handleTouchMove(e) {
-  if (draggedIndex < 0 || !draggedCardEl) return;
+  if (draggedIndex < 0 || !draggedCardEl || isDealing) return;
   e.preventDefault();
   const touch = e.touches[0];
   const dx = Math.abs(touch.clientX - draggedCardEl._startX);
@@ -535,7 +732,7 @@ function handleTouchMove(e) {
 }
 
 function handleTouchEnd(e) {
-  if (draggedIndex < 0) return;
+  if (draggedIndex < 0 || isDealing) return;
   const touchDuration = Date.now() - touchStartTime;
   const wasDragging = draggedCardEl && draggedCardEl._moved;
   const dropZone = document.getElementById('dropZone');
@@ -564,7 +761,7 @@ function handleTouchEnd(e) {
 }
 
 function handleMouseDown(e) {
-  if (isTouchDevice) return;
+  if (isTouchDevice || isDealing) return;
   const card = e.target.closest('.card');
   if (!card || card.classList.contains('disabled')) return;
   if (state.phase !== 'playing' || state.turn !== state.myIndex) return;
@@ -583,7 +780,7 @@ function handleMouseDown(e) {
 }
 
 function handleMouseMove(e) {
-  if (draggedIndex < 0 || !draggedCardEl) return;
+  if (draggedIndex < 0 || !draggedCardEl || isDealing) return;
   const dx = Math.abs(e.clientX - draggedCardEl._startX);
   const dy = Math.abs(e.clientY - draggedCardEl._startY);
   if (dx > 5 || dy > 5) {
@@ -602,7 +799,7 @@ function handleMouseMove(e) {
 function handleMouseUp(e) {
   document.removeEventListener('mousemove', handleMouseMove);
   document.removeEventListener('mouseup', handleMouseUp);
-  if (draggedIndex < 0) return;
+  if (draggedIndex < 0 || isDealing) return;
   const wasDragging = draggedCardEl && draggedCardEl._moved;
   const dropZone = document.getElementById('dropZone');
   const wasOverDrop = dropZone.classList.contains('drag-over');
@@ -658,6 +855,7 @@ function renderControls() {
 }
 
 function showProposalPanel() {
+  if (isDealing) return;
   const panel = document.getElementById('proposalPanel');
   panel.style.display = 'block';
   const grid = document.getElementById('proposalGrid');
@@ -900,7 +1098,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { passive: false });
 
   window.addEventListener('resize', () => {
-    if (state) {
+    if (state && !isDealing) {
       renderMyHand();
     }
   });
@@ -933,7 +1131,7 @@ function updateTimerDisplay() {
   const timerEl = document.getElementById('turnTimer');
   if (!timerEl) return;
 
-  if (!state || state.turn !== state.myIndex) {
+  if (!state || state.turn !== state.myIndex || isDealing) {
     timerEl.style.display = 'none';
     return;
   }
