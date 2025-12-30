@@ -759,7 +759,8 @@ body {
 }
 
 .card.disabled {
-  opacity: 0.5;
+  /* opacity: 0.5; را حذف کنید */
+  filter: grayscale(100%) brightness(0.7); /* کارت را توسی و تیره‌تر می‌کند اما شفاف نمی‌کند */
   pointer-events: none;
 }
 
