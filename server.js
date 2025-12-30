@@ -6,11 +6,15 @@ const { setupDevHandlers } = require('./game/DevHandlers');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 app.use(express.static('public'));
 
-// Dev mode route
 app.get('/dev', (req, res) => {
   res.sendFile(__dirname + '/public/dev.html');
 });

@@ -2,8 +2,11 @@ const { createDeck, sortCards, SUITS } = require('./Deck');
 const { calculateScore, resolveRoundWinner } = require('./Rules');
 
 class Room {
-  constructor(code) {
+  constructor(code, password, hostName, scoreLimit) {
     this.code = code;
+    this.password = password;
+    this.hostIndex = 0;
+    this.scoreLimit = scoreLimit || 500;
     this.players = [];
     this.phase = 'wait';
     this.hands = {};
@@ -20,6 +23,10 @@ class Room {
     this.totalScores = [0, 0];
     this.proposalLog = [];
     this.roundPoints = { 0: 0, 1: 0 };
+    
+    // Game history for end screen
+    this.gameHistory = [];
+    this.matchHistory = [];
   }
 
   addPlayer(id, name) {
@@ -75,10 +82,7 @@ class Room {
 
   submitProposal(playerIndex, value) {
     if (this.phase !== 'propose' || this.turn !== playerIndex) return false;
-    
-    // اصلاح: اولین پیشنهاد می‌تواند 100 باشد
     const minValue = this.leader === -1 ? 100 : this.contract + 5;
-    
     if (value >= minValue && value <= 165 && value % 5 === 0) {
       this.contract = value;
       this.leader = playerIndex;
@@ -104,17 +108,13 @@ class Room {
     do {
       this.turn = (this.turn + 1) % 4;
       attempts++;
-      if (attempts > 4) break; // جلوگیری از حلقه بی‌نهایت
+      if (attempts > 4) break;
     } while (this.passed[this.turn]);
   }
 
   finishProposalPhase() {
-    // اگر هیچکس پیشنهاد نداده، ریستارت
     if (this.leader === -1) return 'restart';
-    
-    // برنده کسی است که پاس نکرده
     let winner = parseInt(Object.keys(this.passed).find(k => !this.passed[k]));
-    
     this.leader = winner;
     this.phase = 'exchange';
     this.turn = this.leader;
@@ -125,19 +125,15 @@ class Room {
   exchangeCards(playerIndex, cardIndices) {
     if (this.phase !== 'exchange' || playerIndex !== this.leader) return false;
     if (cardIndices.length !== 4) return false;
-
     cardIndices.sort((a, b) => b - a);
     let hand = this.hands[playerIndex];
     let exchanged = [];
-
     for (let i of cardIndices) {
       if (i >= 0 && i < hand.length) {
         exchanged.push(hand.splice(i, 1)[0]);
       }
     }
-
     if (exchanged.length !== 4) return false;
-
     this.centerStack = exchanged;
     this.hands[playerIndex] = sortCards(this.hands[playerIndex]);
     this.phase = 'selectMode';
@@ -146,10 +142,8 @@ class Room {
 
   selectMode(playerIndex, mode, suit) {
     if (this.phase !== 'selectMode' || playerIndex !== this.leader) return false;
-
     const validModes = ['hokm', 'nars', 'asNars', 'sars'];
     if (!validModes.includes(mode)) return false;
-
     if (mode === 'sars') {
       this.masterSuit = null;
       this.gameMode = 'sars';
@@ -158,11 +152,9 @@ class Room {
       this.masterSuit = suit;
       this.gameMode = mode;
     }
-
     for (let i = 0; i < 4; i++) {
       this.hands[i] = sortCards(this.hands[i], this.gameMode);
     }
-
     this.phase = 'playing';
     this.turn = this.leader;
     return true;
@@ -170,23 +162,26 @@ class Room {
 
   playCard(playerIndex, cardIndex) {
     if (this.phase !== 'playing' || this.turn !== playerIndex) return null;
-
     let hand = this.hands[playerIndex];
     if (cardIndex < 0 || cardIndex >= hand.length) return null;
-
     let card = hand[cardIndex];
-
-    // بررسی قانون همخال
     if (this.playedCards.length > 0) {
       let leadSuit = this.playedCards[0].c.s;
       let hasSuit = hand.some(c => c.s === leadSuit);
       if (hasSuit && card.s !== leadSuit) return null;
     }
-
     hand.splice(cardIndex, 1);
     this.playedCards.push({ p: playerIndex, c: card });
     this.turn = (this.turn + 1) % 4;
-
+    
+    // Add to game history
+    this.gameHistory.push({
+      player: playerIndex,
+      playerName: this.players[playerIndex].name,
+      card: { ...card },
+      timestamp: Date.now()
+    });
+    
     return card;
   }
 
@@ -196,7 +191,6 @@ class Room {
     let team = w % 2;
     let roundCards = this.playedCards.map(p => p.c);
     this.collectedCards[team].push(...roundCards);
-
     let points = calculateScore(roundCards);
     this.roundPoints[team] += points;
 
@@ -223,7 +217,6 @@ class Room {
 
     this.playedCards = [];
     this.turn = w;
-
     return result;
   }
 
@@ -240,9 +233,31 @@ class Room {
     }
     this.totalScores[otherTeam] += pts[otherTeam];
 
+    // Save match to history
+    this.matchHistory.push({
+      contract: this.contract,
+      leader: this.leader,
+      leaderName: this.players[this.leader].name,
+      gameMode: this.gameMode,
+      masterSuit: this.masterSuit,
+      points: [...pts],
+      success,
+      totalScores: [...this.totalScores],
+      gameHistory: [...this.gameHistory]
+    });
+
+    this.gameHistory = [];
     this.opener = (this.opener + 1) % 4;
-    this.phase = 'finished';
-    this.players.forEach(p => p.ready = false);
+
+    // Check if game is over (score limit reached)
+    const gameOver = this.totalScores[0] >= this.scoreLimit || this.totalScores[1] >= this.scoreLimit;
+    
+    if (gameOver) {
+      this.phase = 'gameOver';
+    } else {
+      this.phase = 'finished';
+      this.players.forEach(p => p.ready = false);
+    }
 
     return {
       points: pts,
@@ -250,8 +265,20 @@ class Room {
       leaderTeam,
       contract: this.contract,
       success,
-      gameMode: this.gameMode
+      gameMode: this.gameMode,
+      gameOver,
+      winner: gameOver ? (this.totalScores[0] >= this.scoreLimit ? 0 : 1) : null,
+      matchHistory: this.matchHistory,
+      scoreLimit: this.scoreLimit
     };
+  }
+
+  resetGame() {
+    this.totalScores = [0, 0];
+    this.matchHistory = [];
+    this.gameHistory = [];
+    this.phase = 'wait';
+    this.players.forEach(p => p.ready = false);
   }
 
   getStateForPlayer(index) {
@@ -274,7 +301,9 @@ class Room {
       ],
       roundPoints: this.roundPoints,
       totalScores: this.totalScores,
-      players: this.players.map(p => ({ name: p.name, connected: p.connected }))
+      players: this.players.map(p => ({ name: p.name, connected: p.connected })),
+      hostIndex: this.hostIndex,
+      scoreLimit: this.scoreLimit
     };
   }
 
@@ -283,7 +312,8 @@ class Room {
       name: p.name,
       ready: p.ready,
       index: i,
-      connected: p.connected
+      connected: p.connected,
+      isHost: i === this.hostIndex
     }));
   }
 }

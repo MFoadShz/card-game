@@ -3,9 +3,12 @@ const Room = require('./Room');
 const rooms = {};
 
 function getRoom(code) {
-  if (!rooms[code]) {
-    rooms[code] = new Room(code);
-  }
+  return rooms[code] || null;
+}
+
+function createRoom(code, password, hostName, scoreLimit) {
+  if (rooms[code]) return null;
+  rooms[code] = new Room(code, password, hostName, scoreLimit);
   return rooms[code];
 }
 
@@ -22,10 +25,56 @@ function setupSocketHandlers(io) {
     let myRoom = null;
     let myIndex = -1;
 
-    socket.on('join', ({ code, name }) => {
-      let room = getRoom(code);
-      let existing = room.players.findIndex(p => p.name === name);
+    // Create a new room
+    socket.on('createRoom', ({ code, name, password, scoreLimit }) => {
+      if (!code || !name) {
+        socket.emit('error', 'کد اتاق و نام الزامی است');
+        return;
+      }
 
+      if (rooms[code]) {
+        socket.emit('error', 'این کد اتاق قبلاً استفاده شده');
+        return;
+      }
+
+      const room = createRoom(code, password || '', name, parseInt(scoreLimit) || 500);
+      if (!room.addPlayer(socket.id, name)) {
+        socket.emit('error', 'خطا در ایجاد اتاق');
+        return;
+      }
+
+      myRoom = code;
+      myIndex = 0;
+      socket.join(code);
+      socket.emit('roomCreated', { 
+        code, 
+        index: myIndex, 
+        isHost: true,
+        scoreLimit: room.scoreLimit 
+      });
+      io.to(code).emit('updatePlayerList', room.getPlayerList());
+    });
+
+    // Join existing room
+    socket.on('joinRoom', ({ code, name, password }) => {
+      if (!code || !name) {
+        socket.emit('error', 'کد اتاق و نام الزامی است');
+        return;
+      }
+
+      const room = getRoom(code);
+      if (!room) {
+        socket.emit('error', 'اتاق یافت نشد');
+        return;
+      }
+
+      if (room.password && room.password !== password) {
+        socket.emit('error', 'رمز عبور اشتباه است');
+        return;
+      }
+
+      // Check for reconnection
+      let existing = room.players.findIndex(p => p.name === name);
       if (existing !== -1) {
         if (room.players[existing].connected) {
           socket.emit('error', 'نام تکراری است');
@@ -35,11 +84,15 @@ function setupSocketHandlers(io) {
         myRoom = code;
         myIndex = existing;
         socket.join(code);
-        socket.emit('joined', { index: myIndex, isRejoin: true });
+        socket.emit('roomJoined', { 
+          index: myIndex, 
+          isRejoin: true, 
+          isHost: myIndex === room.hostIndex,
+          scoreLimit: room.scoreLimit
+        });
         if (room.phase !== 'wait') {
           io.to(socket.id).emit('gameState', room.getStateForPlayer(myIndex));
         }
-        // اطلاع به بقیه برای اتصال مجدد voice
         socket.to(code).emit('playerRejoined', { index: myIndex });
       } else {
         if (!room.addPlayer(socket.id, name)) {
@@ -49,9 +102,13 @@ function setupSocketHandlers(io) {
         myRoom = code;
         myIndex = room.players.length - 1;
         socket.join(code);
-        socket.emit('joined', { index: myIndex, isRejoin: false });
+        socket.emit('roomJoined', { 
+          index: myIndex, 
+          isRejoin: false, 
+          isHost: false,
+          scoreLimit: room.scoreLimit
+        });
       }
-
       io.to(code).emit('updatePlayerList', room.getPlayerList());
     });
 
@@ -118,23 +175,23 @@ function setupSocketHandlers(io) {
       if (!myRoom) return;
       let room = rooms[myRoom];
       let card = room.playCard(myIndex, cardIndex);
-
       if (card) {
         io.to(myRoom).emit('cardAction', {
           player: myIndex,
           card: card,
           name: room.players[myIndex].name
         });
-
         if (room.playedCards.length === 4) {
           setTimeout(() => {
             let result = room.resolveRound();
             io.to(myRoom).emit('roundResult', result);
-
             if (result.isLastRound) {
               setTimeout(() => {
                 let endResult = room.endMatch();
                 io.to(myRoom).emit('matchEnded', endResult);
+                if (endResult.gameOver) {
+                  io.to(myRoom).emit('gameOver', endResult);
+                }
                 io.to(myRoom).emit('updatePlayerList', room.getPlayerList());
               }, 3000);
             } else {
@@ -149,43 +206,32 @@ function setupSocketHandlers(io) {
       }
     });
 
-    // ==================== WebRTC Signaling ====================
-    socket.on('voiceOffer', ({ to, offer }) => {
+    socket.on('resetGame', () => {
       if (!myRoom) return;
       let room = rooms[myRoom];
-      if (room.players[to] && room.players[to].connected) {
-        io.to(room.players[to].id).emit('voiceOffer', {
-          from: myIndex,
-          offer
-        });
+      if (myIndex !== room.hostIndex) {
+        socket.emit('error', 'فقط رئیس می‌تواند بازی را ریست کند');
+        return;
       }
+      room.resetGame();
+      io.to(myRoom).emit('gameReset');
+      io.to(myRoom).emit('updatePlayerList', room.getPlayerList());
     });
 
-    socket.on('voiceAnswer', ({ to, answer }) => {
+    // Voice chat signaling
+    socket.on('voiceSignal', ({ to, signal }) => {
       if (!myRoom) return;
       let room = rooms[myRoom];
       if (room.players[to] && room.players[to].connected) {
-        io.to(room.players[to].id).emit('voiceAnswer', {
+        io.to(room.players[to].id).emit('voiceSignal', {
           from: myIndex,
-          answer
-        });
-      }
-    });
-
-    socket.on('voiceIceCandidate', ({ to, candidate }) => {
-      if (!myRoom) return;
-      let room = rooms[myRoom];
-      if (room.players[to] && room.players[to].connected) {
-        io.to(room.players[to].id).emit('voiceIceCandidate', {
-          from: myIndex,
-          candidate
+          signal
         });
       }
     });
 
     socket.on('voiceReady', () => {
       if (!myRoom) return;
-      // اطلاع به بقیه که این بازیکن آماده voice chat است
       socket.to(myRoom).emit('voiceReady', { from: myIndex });
     });
 
@@ -205,7 +251,6 @@ function setupSocketHandlers(io) {
 
     function handleNextProposer(io, room, roomCode) {
       let active = room.getActiveProposers();
-      
       if (active === 0 || (active === 1 && room.leader === -1)) {
         room.startMatch();
         io.to(roomCode).emit('proposalRestart', { reason: 'همه پاس کردند' });

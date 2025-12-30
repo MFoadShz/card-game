@@ -10,7 +10,6 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- صفحه لابی -->
   <div id="lobby">
     <div class="lobby-container">
       <div class="logo">
@@ -20,15 +19,47 @@
         <span class="logo-suit red">♦</span>
         <span class="logo-suit black">♣</span>
       </div>
-      
-      <div class="login-box">
-        <input type="text" id="nameInput" placeholder="نام شما" maxlength="12">
-        <input type="text" id="roomInput" placeholder="کد اتاق" maxlength="10">
-        <button id="joinBtn" onclick="joinRoom()">ورود به بازی</button>
+
+      <!-- Welcome Screen -->
+      <div id="welcomeScreen" class="welcome-box">
+        <h2>خوش آمدید!</h2>
+        <button class="btn-large btn-primary" onclick="showCreateForm()">🎮 ساخت بازی جدید</button>
+        <button class="btn-large btn-secondary" onclick="showJoinForm()">🚪 ورود به بازی</button>
       </div>
-      
+
+      <!-- Create Room Form -->
+      <div id="createForm" class="form-box" style="display:none">
+        <h3>🎮 ساخت بازی جدید</h3>
+        <input type="text" id="createName" placeholder="نام شما" maxlength="12">
+        <input type="text" id="createCode" placeholder="کد اتاق" maxlength="10">
+        <input type="password" id="createPassword" placeholder="رمز عبور (اختیاری)">
+        <div class="score-limit-section">
+          <label>سقف امتیاز:</label>
+          <select id="createScoreLimit">
+            <option value="300">۳۰۰</option>
+            <option value="500" selected>۵۰۰</option>
+            <option value="750">۷۵۰</option>
+            <option value="1000">۱۰۰۰</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="createRoom()">✅ ساخت اتاق</button>
+        <button class="btn-back" onclick="backToWelcome()">← بازگشت</button>
+      </div>
+
+      <!-- Join Room Form -->
+      <div id="joinForm" class="form-box" style="display:none">
+        <h3>🚪 ورود به بازی</h3>
+        <input type="text" id="joinName" placeholder="نام شما" maxlength="12">
+        <input type="text" id="joinCode" placeholder="کد اتاق" maxlength="10">
+        <input type="password" id="joinPassword" placeholder="رمز عبور">
+        <button class="btn-primary" onclick="joinRoom()">✅ ورود</button>
+        <button class="btn-back" onclick="backToWelcome()">← بازگشت</button>
+      </div>
+
+      <!-- Waiting Room -->
       <div id="waitingRoom" class="waiting-room" style="display:none">
         <h3>🎴 اتاق انتظار</h3>
+        <div id="scoreLimitDisplay" class="score-limit-display"></div>
         <div id="playersList"></div>
         <div class="team-info">
           <span class="team team1">تیم ۱: بازیکن ۱ و ۳</span>
@@ -39,20 +70,18 @@
     </div>
   </div>
 
-  <!-- صفحه بازی -->
   <div id="game" style="display:none">
-    <!-- لایه تاریک برای زمان پیشنهاد -->
     <div id="proposalOverlay" class="proposal-overlay" style="display:none">
       <div id="waitingMessage" class="waiting-message"></div>
     </div>
-    
-    <!-- نوار امتیاز بالا -->
+
     <div id="topBar">
       <div class="score-item team1">
         <span class="team-label">تیم ۱</span>
         <span class="score-value" id="score0">0</span>
       </div>
       <div class="game-info">
+        <div id="scoreLimitGame" class="score-limit-game"></div>
         <div id="contractDisplay"></div>
         <div id="trumpDisplay"></div>
       </div>
@@ -62,50 +91,38 @@
       </div>
     </div>
 
-    <!-- کنترل‌های Voice Chat -->
     <div id="voiceControls">
       <button id="btnMic" class="voice-btn" onclick="toggleMic()" title="میکروفن">
         <span class="icon">🎤</span>
         <span class="status">روشن</span>
       </button>
-      <button id="btnSpeaker" class="voice-btn" onclick="toggleSpeaker()" title="صدا">
-        <span class="icon">🔊</span>
-        <span class="status">روشن</span>
-      </button>
       <div id="voiceStatus" class="voice-status"></div>
     </div>
 
-    <!-- بازیکن بالا (روبرو) -->
     <div id="playerTop" class="opponent top">
       <div class="opponent-info">
         <span class="opponent-name"></span>
         <span class="card-count"></span>
-        <span class="voice-indicator">🎤</span>
       </div>
       <div class="opponent-cards"></div>
     </div>
 
-    <!-- بازیکن چپ -->
     <div id="playerLeft" class="opponent left">
       <div class="opponent-info">
         <span class="opponent-name"></span>
         <span class="card-count"></span>
-        <span class="voice-indicator">🎤</span>
       </div>
       <div class="opponent-cards"></div>
     </div>
 
-    <!-- بازیکن راست -->
     <div id="playerRight" class="opponent right">
       <div class="opponent-info">
         <span class="opponent-name"></span>
         <span class="card-count"></span>
-        <span class="voice-indicator">🎤</span>
       </div>
       <div class="opponent-cards"></div>
     </div>
 
-    <!-- میز بازی (مرکز) - Drop Zone -->
     <div id="tableCenter">
       <div id="dropZone">
         <div id="playedCards"></div>
@@ -114,10 +131,8 @@
       <div id="statusMessage"></div>
     </div>
 
-    <!-- لاگ خلاصه - وسط صفحه -->
     <div id="gameLog"></div>
 
-    <!-- دست بازیکن (پایین) -->
     <div id="myHandArea">
       <div id="myInfo">
         <span id="myName"></span>
@@ -126,10 +141,8 @@
       <div id="myHand"></div>
     </div>
 
-    <!-- کنترل‌ها -->
     <div id="controls"></div>
 
-    <!-- منوی پیشنهاد (جدید) -->
     <div id="proposalPanel" class="proposal-panel" style="display:none">
       <div class="proposal-header">
         <h3>📢 انتخاب قرارداد</h3>
@@ -140,11 +153,10 @@
     </div>
   </div>
 
-  <!-- مودال انتخاب حالت -->
+  <!-- Mode Selection Modal -->
   <div id="modeModal" class="modal" style="display:none">
     <div class="modal-content mode-modal">
       <h3>🎯 انتخاب نوع بازی</h3>
-      
       <div class="mode-options">
         <label class="mode-option">
           <input type="radio" name="gameMode" value="hokm">
@@ -153,7 +165,6 @@
             <div class="mode-desc">آس قوی‌ترین</div>
           </div>
         </label>
-        
         <label class="mode-option">
           <input type="radio" name="gameMode" value="nars">
           <div class="mode-card">
@@ -161,7 +172,6 @@
             <div class="mode-desc">دولو قوی‌ترین</div>
           </div>
         </label>
-        
         <label class="mode-option">
           <input type="radio" name="gameMode" value="asNars">
           <div class="mode-card">
@@ -169,7 +179,6 @@
             <div class="mode-desc">آس قوی، شاه ضعیف</div>
           </div>
         </label>
-        
         <label class="mode-option">
           <input type="radio" name="gameMode" value="sars">
           <div class="mode-card">
@@ -178,7 +187,6 @@
           </div>
         </label>
       </div>
-      
       <div id="suitSelector" class="suit-selector" style="display:none">
         <p>خال حکم:</p>
         <div class="suits">
@@ -188,12 +196,11 @@
           <button class="suit-btn" data-suit="♣" onclick="selectSuit('♣')">♣</button>
         </div>
       </div>
-      
       <button id="confirmModeBtn" onclick="confirmMode()" disabled>انتخاب کنید</button>
     </div>
   </div>
 
-  <!-- مودال نتیجه -->
+  <!-- Round Result Modal -->
   <div id="resultModal" class="modal" style="display:none">
     <div class="modal-content result-modal">
       <h3 id="resultTitle"></h3>
@@ -202,16 +209,25 @@
     </div>
   </div>
 
-  <!-- مودال پایان بازی -->
+  <!-- Match End Modal -->
   <div id="endModal" class="modal" style="display:none">
     <div class="modal-content end-modal">
       <h2 id="endTitle"></h2>
       <div id="endDetails"></div>
-      <button onclick="playAgain()">🔄 بازی مجدد</button>
+      <button onclick="playAgain()">🔄 ادامه بازی</button>
     </div>
   </div>
 
-  <!-- Container برای صداهای voice chat -->
+  <!-- Game Over Modal -->
+  <div id="gameOverModal" class="modal" style="display:none">
+    <div class="modal-content game-over-modal">
+      <h2 id="gameOverTitle"></h2>
+      <div id="gameOverDetails"></div>
+      <div id="gameHistory" class="game-history"></div>
+      <button id="resetGameBtn" class="btn-reset">🔄 شروع بازی جدید</button>
+    </div>
+  </div>
+
   <div id="audioContainer" style="display:none"></div>
 
   <script src="/socket.io/socket.io.js"></script>
