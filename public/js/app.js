@@ -4,6 +4,9 @@ let state = null;
 let selected = [];
 let selectedSuit = null;
 let playerNames = [];
+let draggedCard = null;
+let draggedIndex = -1;
+let dragOffset = { x: 0, y: 0 };
 
 // ==================== Socket Events ====================
 socket.on('connect', () => console.log('Connected'));
@@ -16,7 +19,7 @@ socket.on('joined', data => {
   myIndex = data.index;
   document.getElementById('waitingRoom').style.display = 'block';
   if (data.isRejoin) {
-    console.log('Rejoined as player', myIndex);
+    addLog('اتصال مجدد برقرار شد', 'info');
   }
 });
 
@@ -33,20 +36,27 @@ socket.on('gameState', data => {
 });
 
 socket.on('proposalUpdate', data => {
-  addProposalHistory(data);
+  const text = data.action === 'call' ? `${data.name}: ${data.value}` : `${data.name}: پاس`;
+  const type = data.action === 'call' ? 'call' : 'pass';
+  addLog(text, type);
+  updateProposalLogMini(data);
 });
 
 socket.on('leaderSelected', data => {
-  hideModal('proposalModal');
-  showStatus(`👑 ${data.name} حاکم شد - قرارداد: ${data.contract}`);
+  hideProposalPanel();
+  addLog(`👑 ${data.name} حاکم شد - قرارداد: ${data.contract}`, 'info');
 });
 
 socket.on('modeSelected', data => {
   hideModal('modeModal');
+  const modeNames = { hokm: 'حکم', nars: 'نرس', asNars: 'آس‌نرس', sars: 'سرس' };
+  const modeName = modeNames[data.gameMode] || data.gameMode;
+  const suitText = data.masterSuit ? ` - ${data.masterSuit}` : '';
+  addLog(`🎯 ${data.name}: ${modeName}${suitText}`, 'info');
 });
 
 socket.on('cardAction', data => {
-  // Card played animation handled in render
+  // انیمیشن کارت بازی شده
 });
 
 socket.on('roundResult', data => {
@@ -58,11 +68,12 @@ socket.on('matchEnded', data => {
 });
 
 socket.on('proposalRestart', data => {
-  showStatus('⚠️ ' + data.reason);
+  hideProposalPanel();
+  addLog('⚠️ ' + data.reason, 'info');
 });
 
 socket.on('playerDisconnected', data => {
-  showStatus(`❌ ${data.name} قطع شد`);
+  addLog(`❌ ${data.name} قطع شد`, 'info');
 });
 
 // ==================== Actions ====================
@@ -86,7 +97,6 @@ function clickCard(index) {
   if (!state) return;
   
   if (state.phase === 'exchange' && state.myIndex === state.leader) {
-    // انتخاب کارت برای تعویض
     if (selected.includes(index)) {
       selected = selected.filter(i => i !== index);
     } else if (selected.length < 4) {
@@ -94,9 +104,12 @@ function clickCard(index) {
     }
     render();
   } else if (state.phase === 'playing' && state.turn === state.myIndex) {
-    // بازی کارت
-    socket.emit('playCard', index);
+    playCard(index);
   }
+}
+
+function playCard(index) {
+  socket.emit('playCard', index);
 }
 
 function doExchange() {
@@ -108,13 +121,8 @@ function doExchange() {
   selected = [];
 }
 
-function submitProposal() {
-  const val = parseInt(document.getElementById('proposalValue').value);
-  if (val >= 100 && val <= 165 && val % 5 === 0) {
-    socket.emit('submitProposal', val);
-  } else {
-    alert('مقدار نامعتبر');
-  }
+function submitProposalValue(value) {
+  socket.emit('submitProposal', value);
 }
 
 function passProposal() {
@@ -152,6 +160,14 @@ function playAgain() {
 function render() {
   if (!state) return;
   
+  const gameEl = document.getElementById('game');
+  const isMyTurn = state.turn === state.myIndex;
+  const isProposing = state.phase === 'propose';
+  
+  // کلاس‌های حالت
+  gameEl.classList.toggle('my-turn', isMyTurn && state.phase === 'playing');
+  gameEl.classList.toggle('game-proposing', isProposing);
+  
   // امتیازات
   document.getElementById('score0').textContent = state.totalScores[0];
   document.getElementById('score1').textContent = state.totalScores[1];
@@ -184,11 +200,29 @@ function render() {
   // کنترل‌ها
   renderControls();
   
+  // Drop zone hint
+  const dropHint = document.getElementById('dropHint');
+  if (isMyTurn && state.phase === 'playing' && state.playedCards.length < 4) {
+    dropHint.style.display = 'block';
+  } else {
+    dropHint.style.display = 'none';
+  }
+  
   // مودال‌ها
-  if (state.phase === 'propose' && state.turn === state.myIndex) {
-    showModal('proposalModal');
-    updateProposalModal();
-  } else if (state.phase === 'selectMode' && state.leader === state.myIndex) {
+  if (state.phase === 'propose') {
+    if (state.turn === state.myIndex) {
+      // نوبت من - نمایش منوی پیشنهاد
+      showProposalPanel();
+    } else {
+      // نوبت دیگران - فقط overlay و log
+      hideProposalPanel();
+      document.getElementById('proposalOverlay').style.display = 'block';
+    }
+  } else {
+    hideProposalPanel();
+  }
+  
+  if (state.phase === 'selectMode' && state.leader === state.myIndex) {
     showModal('modeModal');
   }
 }
@@ -223,9 +257,9 @@ function renderPlayerList(players) {
 function renderOpponents() {
   const positions = ['top', 'left', 'right'];
   const relativeIndices = [
-    (myIndex + 2) % 4, // top (روبرو)
-    (myIndex + 3) % 4, // left
-    (myIndex + 1) % 4  // right
+    (myIndex + 2) % 4,
+    (myIndex + 3) % 4,
+    (myIndex + 1) % 4
   ];
   
   positions.forEach((pos, i) => {
@@ -240,9 +274,7 @@ function renderOpponents() {
     elem.querySelector('.opponent-name').textContent = name;
     elem.querySelector('.card-count').textContent = count;
     
-    // پشت کارت‌ها
     const cardsContainer = elem.querySelector('.opponent-cards');
-    const isHorizontal = pos === 'top';
     const displayCount = Math.min(count, 6);
     
     let cardsHtml = '';
@@ -291,6 +323,11 @@ function renderMyHand() {
     html += createCardHtml(card, i, isSelected, '', classes.join(' '));
   });
   container.innerHTML = html;
+  
+  // Setup drag events
+  if (canPlay) {
+    setupDragEvents();
+  }
 }
 
 function renderControls() {
@@ -305,6 +342,162 @@ function renderControls() {
   } else {
     container.innerHTML = '';
   }
+}
+
+// ==================== Proposal Panel ====================
+function showProposalPanel() {
+  document.getElementById('proposalOverlay').style.display = 'block';
+  const panel = document.getElementById('proposalPanel');
+  panel.style.display = 'block';
+  
+  // ساخت grid اعداد
+  const grid = document.getElementById('proposalGrid');
+  let html = '';
+  
+  for (let val = 100; val <= 165; val += 5) {
+    const isDisabled = val <= state.contract && state.leader !== -1;
+    const isAvailable = !isDisabled;
+    const classes = ['proposal-btn'];
+    if (isAvailable) classes.push('available');
+    
+    html += `
+      <button class="${classes.join(' ')}" 
+              ${isDisabled ? 'disabled' : ''} 
+              onclick="submitProposalValue(${val})">
+        ${val}
+      </button>
+    `;
+  }
+  
+  grid.innerHTML = html;
+  
+  // لاگ کوچک
+  updateProposalLogMiniFromState();
+}
+
+function hideProposalPanel() {
+  document.getElementById('proposalPanel').style.display = 'none';
+  document.getElementById('proposalOverlay').style.display = 'none';
+}
+
+function updateProposalLogMini(data) {
+  const container = document.getElementById('proposalLogMini');
+  const type = data.action === 'call' ? 'call' : 'pass';
+  const text = data.action === 'call' ? data.value : 'پاس';
+  container.innerHTML += `<span class="log-item ${type}">${data.name}: ${text}</span>`;
+}
+
+function updateProposalLogMiniFromState() {
+  const container = document.getElementById('proposalLogMini');
+  if (!state || !state.proposalLog) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  container.innerHTML = state.proposalLog.map(log => {
+    const name = state.players[log.player]?.name || 'بازیکن';
+    const type = log.action === 'call' ? 'call' : 'pass';
+    const text = log.action === 'call' ? log.value : 'پاس';
+    return `<span class="log-item ${type}">${name}: ${text}</span>`;
+  }).join('');
+}
+
+// ==================== Drag & Drop ====================
+function setupDragEvents() {
+  const cards = document.querySelectorAll('#myHand .card:not(.disabled)');
+  
+  cards.forEach(card => {
+    // Touch events
+    card.addEventListener('touchstart', handleDragStart, { passive: false });
+    card.addEventListener('touchmove', handleDragMove, { passive: false });
+    card.addEventListener('touchend', handleDragEnd);
+    card.addEventListener('touchcancel', handleDragEnd);
+    
+    // Mouse events
+    card.addEventListener('mousedown', handleDragStart);
+  });
+  
+  document.addEventListener('mousemove', handleDragMove);
+  document.addEventListener('mouseup', handleDragEnd);
+}
+
+function handleDragStart(e) {
+  if (!state || state.phase !== 'playing' || state.turn !== myIndex) return;
+  
+  const card = e.target.closest('.card');
+  if (!card || card.classList.contains('disabled')) return;
+  
+  e.preventDefault();
+  
+  draggedIndex = parseInt(card.dataset.index);
+  if (isNaN(draggedIndex)) return;
+  
+  const rect = card.getBoundingClientRect();
+  const point = e.touches ? e.touches[0] : e;
+  
+  dragOffset.x = point.clientX - rect.left;
+  dragOffset.y = point.clientY - rect.top;
+  
+  // ساخت ghost card
+  draggedCard = card.cloneNode(true);
+  draggedCard.classList.add('card-ghost');
+  draggedCard.style.width = rect.width + 'px';
+  draggedCard.style.height = rect.height + 'px';
+  document.body.appendChild(draggedCard);
+  
+  updateGhostPosition(point);
+  
+  card.style.opacity = '0.3';
+}
+
+function handleDragMove(e) {
+  if (!draggedCard) return;
+  
+  e.preventDefault();
+  
+  const point = e.touches ? e.touches[0] : e;
+  updateGhostPosition(point);
+  
+  // Check if over drop zone
+  const dropZone = document.getElementById('dropZone');
+  const dropRect = dropZone.getBoundingClientRect();
+  
+  if (point.clientX >= dropRect.left && point.clientX <= dropRect.right &&
+      point.clientY >= dropRect.top && point.clientY <= dropRect.bottom) {
+    dropZone.classList.add('drag-over');
+  } else {
+    dropZone.classList.remove('drag-over');
+  }
+}
+
+function handleDragEnd(e) {
+  if (!draggedCard) return;
+  
+  const dropZone = document.getElementById('dropZone');
+  const wasOverDrop = dropZone.classList.contains('drag-over');
+  
+  // Cleanup
+  dropZone.classList.remove('drag-over');
+  draggedCard.remove();
+  draggedCard = null;
+  
+  // Reset original card opacity
+  const cards = document.querySelectorAll('#myHand .card');
+  cards.forEach(c => c.style.opacity = '1');
+  
+  // Play card if dropped in zone
+  if (wasOverDrop && draggedIndex >= 0) {
+    playCard(draggedIndex);
+  }
+  
+  draggedIndex = -1;
+}
+
+function updateGhostPosition(point) {
+  if (!draggedCard) return;
+  
+  draggedCard.style.left = (point.clientX - dragOffset.x) + 'px';
+  draggedCard.style.top = (point.clientY - dragOffset.y) + 'px';
 }
 
 // ==================== Helpers ====================
@@ -330,7 +523,6 @@ function createCardHtml(card, index, isSelected = false, sizeClass = '', extraCl
 
 function getRelativePosition(playerIndex) {
   const diff = (playerIndex - myIndex + 4) % 4;
-  // 0 = me (bottom), 1 = right, 2 = top, 3 = left
   return diff;
 }
 
@@ -342,36 +534,25 @@ function hideModal(id) {
   document.getElementById(id).style.display = 'none';
 }
 
-function showStatus(msg) {
-  document.getElementById('statusMessage').textContent = msg;
-  setTimeout(() => {
-    if (document.getElementById('statusMessage').textContent === msg) {
-      document.getElementById('statusMessage').textContent = '';
-    }
-  }, 3000);
-}
-
-function updateProposalModal() {
-  const minValue = state.leader === -1 ? 100 : state.contract + 5;
-  const input = document.getElementById('proposalValue');
-  input.min = minValue;
-  input.value = minValue;
+function addLog(msg, type = 'info') {
+  const container = document.getElementById('gameLog');
+  const item = document.createElement('div');
+  item.className = 'log-item ' + type;
+  item.textContent = msg;
   
-  // تاریخچه پیشنهادات
-  const history = document.getElementById('proposalHistory');
-  history.innerHTML = state.proposalLog.map(log => {
-    const name = state.players[log.player]?.name || 'بازیکن';
-    const cls = log.action === 'call' ? 'call' : 'pass';
-    const text = log.action === 'call' ? log.value : 'پاس';
-    return `<div class="proposal-item ${cls}">${name}: ${text}</div>`;
-  }).join('');
-}
-
-function addProposalHistory(data) {
-  const history = document.getElementById('proposalHistory');
-  const cls = data.action === 'call' ? 'call' : 'pass';
-  const text = data.action === 'call' ? data.value : 'پاس';
-  history.innerHTML += `<div class="proposal-item ${cls}">${data.name}: ${text}</div>`;
+  // حداکثر 3 لاگ
+  while (container.children.length >= 3) {
+    container.removeChild(container.firstChild);
+  }
+  
+  container.appendChild(item);
+  
+  // پاک کردن بعد از 5 ثانیه
+  setTimeout(() => {
+    if (item.parentNode === container) {
+      item.remove();
+    }
+  }, 5000);
 }
 
 function updateModeButton() {
@@ -459,4 +640,11 @@ document.addEventListener('DOMContentLoaded', () => {
       updateModeButton();
     });
   });
+  
+  // Prevent default touch behaviors
+  document.addEventListener('touchmove', (e) => {
+    if (draggedCard) {
+      e.preventDefault();
+    }
+  }, { passive: false });
 });

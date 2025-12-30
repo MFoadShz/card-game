@@ -41,6 +41,9 @@
 
   <!-- صفحه بازی -->
   <div id="game" style="display:none">
+    <!-- لایه تاریک برای زمان پیشنهاد -->
+    <div id="proposalOverlay" class="proposal-overlay" style="display:none"></div>
+    
     <!-- نوار امتیاز بالا -->
     <div id="topBar">
       <div class="score-item team1">
@@ -84,11 +87,17 @@
       <div class="opponent-cards"></div>
     </div>
 
-    <!-- میز بازی (مرکز) -->
+    <!-- میز بازی (مرکز) - Drop Zone -->
     <div id="tableCenter">
-      <div id="playedCards"></div>
+      <div id="dropZone">
+        <div id="playedCards"></div>
+        <div id="dropHint" style="display:none">🎴 کارت را اینجا رها کنید</div>
+      </div>
       <div id="statusMessage"></div>
     </div>
+
+    <!-- لاگ خلاصه - وسط صفحه -->
+    <div id="gameLog"></div>
 
     <!-- دست بازیکن (پایین) -->
     <div id="myHandArea">
@@ -101,20 +110,15 @@
 
     <!-- کنترل‌ها -->
     <div id="controls"></div>
-  </div>
 
-  <!-- مودال پیشنهاد -->
-  <div id="proposalModal" class="modal" style="display:none">
-    <div class="modal-content">
-      <h3>📢 پیشنهاد قرارداد</h3>
-      <div id="proposalHistory"></div>
-      <div class="proposal-controls">
-        <input type="number" id="proposalValue" min="100" max="165" step="5" value="100">
-        <div class="proposal-buttons">
-          <button onclick="submitProposal()" class="btn-call">پیشنهاد</button>
-          <button onclick="passProposal()" class="btn-pass">پاس</button>
-        </div>
+    <!-- منوی پیشنهاد (جدید) -->
+    <div id="proposalPanel" class="proposal-panel" style="display:none">
+      <div class="proposal-header">
+        <h3>📢 انتخاب قرارداد</h3>
+        <div id="proposalLogMini" class="proposal-log-mini"></div>
       </div>
+      <div id="proposalGrid" class="proposal-grid"></div>
+      <button class="btn-pass-big" onclick="passProposal()">❌ پاس</button>
     </div>
   </div>
 
