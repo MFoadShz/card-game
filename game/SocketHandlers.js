@@ -73,7 +73,7 @@ function setupSocketHandlers(io) {
           value: val,
           name: room.players[myIndex].name
         });
-        handleNextProposer(io, room);
+        handleNextProposer(io, room, myRoom);
       }
     });
 
@@ -86,7 +86,7 @@ function setupSocketHandlers(io) {
           action: 'pass',
           name: room.players[myIndex].name
         });
-        handleNextProposer(io, room);
+        handleNextProposer(io, room, myRoom);
       }
     });
 
@@ -134,9 +134,9 @@ function setupSocketHandlers(io) {
                 let endResult = room.endMatch();
                 io.to(myRoom).emit('matchEnded', endResult);
                 io.to(myRoom).emit('updatePlayerList', room.getPlayerList());
-              }, 3500);
+              }, 3000);
             } else {
-              setTimeout(() => broadcastState(io, room), 3000);
+              setTimeout(() => broadcastState(io, room), 2500);
             }
           }, 500);
         } else {
@@ -153,23 +153,29 @@ function setupSocketHandlers(io) {
         if (room.players[myIndex]) {
           room.players[myIndex].connected = false;
           io.to(myRoom).emit('updatePlayerList', room.getPlayerList());
-          io.to(myRoom).emit('log', { msg: `${room.players[myIndex].name} قطع شد` });
+          io.to(myRoom).emit('playerDisconnected', {
+            index: myIndex,
+            name: room.players[myIndex].name
+          });
         }
       }
     });
 
-    socket.on('voice-join', (peerId) => {
-      socket.broadcast.emit('voice-peer', peerId);
-    });
-
-    function handleNextProposer(io, room) {
+    // اصلاح: myRoom را به عنوان پارامتر پاس می‌دهیم
+    function handleNextProposer(io, room, roomCode) {
       let active = room.getActiveProposers();
-      if (active === 1) {
+      
+      if (active === 0 || (active === 1 && room.leader === -1)) {
+        // همه پاس کردند بدون پیشنهاد - ریستارت
+        room.startMatch();
+        io.to(roomCode).emit('proposalRestart', { reason: 'همه پاس کردند' });
+      } else if (active === 1) {
         let result = room.finishProposalPhase();
         if (result === 'restart') {
           room.startMatch();
+          io.to(roomCode).emit('proposalRestart', { reason: 'پیشنهاد معتبر نبود' });
         } else {
-          io.to(myRoom).emit('leaderSelected', {
+          io.to(roomCode).emit('leaderSelected', {
             leader: room.leader,
             name: room.players[room.leader].name,
             contract: room.contract

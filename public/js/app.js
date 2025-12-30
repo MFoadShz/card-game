@@ -1,131 +1,119 @@
 const socket = io();
 let myIndex = -1;
-let state = {};
+let state = null;
 let selected = [];
-let playerNames = [];
 let selectedSuit = null;
-let pendingMode = null;
+let playerNames = [];
 
-// Socket event handlers
-socket.on('log', d => log(d.msg));
-socket.on('error', m => alert(m));
+// ==================== Socket Events ====================
+socket.on('connect', () => console.log('Connected'));
 
-socket.on('joined', d => {
-  myIndex = d.index;
-  document.getElementById('playerList').style.display = 'block';
-  if (d.isRejoin) {
-    document.getElementById('readyBtn').disabled = true;
-    log('اتصال مجدد برقرار شد');
+socket.on('error', msg => {
+  alert(msg);
+});
+
+socket.on('joined', data => {
+  myIndex = data.index;
+  document.getElementById('waitingRoom').style.display = 'block';
+  if (data.isRejoin) {
+    console.log('Rejoined as player', myIndex);
   }
 });
 
-socket.on('updatePlayerList', ps => {
-  playerNames = ps.map(p => p.name);
-  let h = ps.map((p, i) => {
-    let status = '';
-    if (!p.connected) status = ' 📵';
-    else if (p.ready) status = ' ✅';
-
-    let cls = 'player ' + (i % 2 == 0 ? 'team0' : 'team1');
-    if (!p.connected) cls += ' offline';
-    else if (p.ready) cls += ' ready';
-
-    return `<div class="${cls}">${i + 1}. ${p.name}${i === myIndex ? ' (شما)' : ''}${status}</div>`;
-  }).join('');
-  document.getElementById('players').innerHTML = h;
+socket.on('updatePlayerList', players => {
+  playerNames = players.map(p => p.name);
+  renderPlayerList(players);
 });
 
-socket.on('proposalUpdate', d => log(d.action === 'call' ? `${d.name}: ${d.value}` : `${d.name}: پاس`));
-socket.on('leaderSelected', d => log(`👑 ${d.name} حاکم شد (${d.contract})`));
-
-socket.on('modeSelected', d => {
-  let modeText = MODE_NAMES[d.gameMode] || d.gameMode;
-  if (d.masterSuit) modeText += ` ${d.masterSuit}`;
-  log(`🎯 حالت بازی: ${modeText}`);
-  document.getElementById('modeModal').style.display = 'none';
-  document.getElementById('confirmModal').style.display = 'none';
-});
-
-socket.on('cardAction', d => log(`${d.name}: ${d.card.v}${d.card.s}`));
-
-socket.on('roundResult', d => {
-  log(`🏆 ${d.name || d.winnerName} برد (+${d.points})`);
-  document.getElementById('rs0').textContent = d.roundPoints[0];
-  document.getElementById('rs1').textContent = d.roundPoints[1];
-  showResultModal(d);
-});
-
-socket.on('gameState', d => {
-  state = d;
-  selected = [];
+socket.on('gameState', data => {
+  state = data;
   document.getElementById('lobby').style.display = 'none';
-  document.getElementById('game').style.display = 'block';
-
-  if (state.phase === 'selectMode' && state.leader === myIndex) {
-    showModeModal();
-  } else {
-    document.getElementById('modeModal').style.display = 'none';
-    document.getElementById('confirmModal').style.display = 'none';
-  }
+  document.getElementById('game').style.display = 'flex';
   render();
 });
 
-socket.on('matchEnded', d => {
-  document.getElementById('resultModal').style.display = 'none';
-  document.getElementById('s0').textContent = d.totalScores[0];
-  document.getElementById('s1').textContent = d.totalScores[1];
-
-  const modeText = MODE_NAMES[d.gameMode] || d.gameMode;
-
-  let m = `🎮 پایان دست! (${modeText})\n\n`;
-  m += d.success ? `✅ تیم حاکم موفق شد! (+${d.points[d.leaderTeam]})` : `❌ تیم حاکم موفق نشد! (-${d.contract})`;
-  m += `\n📊 تیم حریف: +${d.points[1 - d.leaderTeam]}`;
-  m += `\n\n🏆 مجموع کل:\nتیم۱: ${d.totalScores[0]}\nتیم۲: ${d.totalScores[1]}`;
-
-  alert(m);
-  document.getElementById('readyBtn').disabled = false;
-  document.getElementById('lobby').style.display = 'block';
-  document.getElementById('game').style.display = 'none';
-  document.getElementById('players').innerHTML = '';
+socket.on('proposalUpdate', data => {
+  addProposalHistory(data);
 });
 
-// ==================== User Actions ====================
+socket.on('leaderSelected', data => {
+  hideModal('proposalModal');
+  showStatus(`👑 ${data.name} حاکم شد - قرارداد: ${data.contract}`);
+});
 
+socket.on('modeSelected', data => {
+  hideModal('modeModal');
+});
+
+socket.on('cardAction', data => {
+  // Card played animation handled in render
+});
+
+socket.on('roundResult', data => {
+  showRoundResult(data);
+});
+
+socket.on('matchEnded', data => {
+  showMatchEnd(data);
+});
+
+socket.on('proposalRestart', data => {
+  showStatus('⚠️ ' + data.reason);
+});
+
+socket.on('playerDisconnected', data => {
+  showStatus(`❌ ${data.name} قطع شد`);
+});
+
+// ==================== Actions ====================
 function joinRoom() {
-  const name = document.getElementById('name').value.trim();
-  const room = document.getElementById('room').value.trim();
-  if (!name || !room) return alert('نام و کد اتاق الزامی است');
+  const name = document.getElementById('nameInput').value.trim();
+  const room = document.getElementById('roomInput').value.trim();
+  if (!name || !room) {
+    alert('نام و کد اتاق را وارد کنید');
+    return;
+  }
   socket.emit('join', { code: room, name });
 }
 
 function setReady() {
   socket.emit('playerReady');
   document.getElementById('readyBtn').disabled = true;
+  document.getElementById('readyBtn').textContent = '⏳ منتظر بقیه...';
 }
 
-// تابع اصلی کلیک روی کارت
-function clickCard(i) {
-  console.log('Card clicked:', i, 'Phase:', state.phase, 'Leader:', state.leader, 'MyIndex:', myIndex);
+function clickCard(index) {
+  if (!state) return;
   
-  if (state.phase === 'exchange' && myIndex === state.leader) {
-    // حالت انتخاب کارت برای حذف
-    if (selected.includes(i)) {
-      selected = selected.filter(x => x !== i);
+  if (state.phase === 'exchange' && state.myIndex === state.leader) {
+    // انتخاب کارت برای تعویض
+    if (selected.includes(index)) {
+      selected = selected.filter(i => i !== index);
     } else if (selected.length < 4) {
-      selected.push(i);
+      selected.push(index);
     }
-    console.log('Selected cards:', selected);
     render();
-  } else if (state.phase === 'playing' && state.turn === myIndex) {
-    // حالت بازی کارت
-    socket.emit('playCard', i);
+  } else if (state.phase === 'playing' && state.turn === state.myIndex) {
+    // بازی کارت
+    socket.emit('playCard', index);
   }
 }
 
+function doExchange() {
+  if (selected.length !== 4) {
+    alert('۴ کارت انتخاب کنید');
+    return;
+  }
+  socket.emit('exchangeCards', selected);
+  selected = [];
+}
+
 function submitProposal() {
-  const v = parseInt(document.getElementById('propVal').value);
-  if (v > state.contract && v <= 165 && v % 5 === 0) {
-    socket.emit('submitProposal', v);
+  const val = parseInt(document.getElementById('proposalValue').value);
+  if (val >= 100 && val <= 165 && val % 5 === 0) {
+    socket.emit('submitProposal', val);
+  } else {
+    alert('مقدار نامعتبر');
   }
 }
 
@@ -133,104 +121,342 @@ function passProposal() {
   socket.emit('passProposal');
 }
 
-function doExchange() {
-  if (selected.length === 4) {
-    console.log('Exchanging cards:', selected);
-    socket.emit('exchangeCards', selected);
-    selected = [];
-  }
-}
-
 function selectSuit(suit) {
-  const selectedMode = document.querySelector('input[name="gameMode"]:checked');
-  if (!selectedMode || !MODE_NEEDS_SUIT[selectedMode.value]) return;
-
   selectedSuit = suit;
-  document.querySelectorAll('.suit-btn').forEach(b => {
-    b.classList.toggle('selected', b.dataset.suit === suit);
+  document.querySelectorAll('.suit-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.suit === suit);
   });
-
-  const display = document.getElementById('selectedModeDisplay');
-  const displayText = document.getElementById('selectedModeText');
-  const confirmBtn = document.getElementById('confirmModeBtn');
-
-  display.style.display = 'block';
-  displayText.textContent = `${MODE_NAMES[selectedMode.value]} با حکم ${suit}`;
-  confirmBtn.disabled = false;
-  confirmBtn.textContent = '✅ تایید و شروع بازی';
+  updateModeButton();
 }
 
 function confirmMode() {
-  const selectedMode = document.querySelector('input[name="gameMode"]:checked');
-  if (!selectedMode) {
-    alert('لطفا حالت بازی را انتخاب کنید');
-    return;
+  const modeRadio = document.querySelector('input[name="gameMode"]:checked');
+  if (!modeRadio) return;
+  
+  const mode = modeRadio.value;
+  if (mode === 'sars') {
+    socket.emit('selectMode', { mode });
+  } else if (selectedSuit) {
+    socket.emit('selectMode', { mode, suit: selectedSuit });
   }
-
-  const mode = selectedMode.value;
-
-  if (MODE_NEEDS_SUIT[mode] && !selectedSuit) {
-    alert('لطفا خال حکم را انتخاب کنید');
-    return;
-  }
-
-  pendingMode = { mode, suit: selectedSuit };
-
-  let modeInfo = MODE_NAMES[mode];
-  if (MODE_NEEDS_SUIT[mode]) modeInfo += ` با حکم ${selectedSuit}`;
-
-  document.getElementById('confirmModeInfo').textContent = modeInfo;
-  document.getElementById('confirmModeDesc').textContent = MODE_DESCRIPTIONS[mode];
-  document.getElementById('modeModal').style.display = 'none';
-  document.getElementById('confirmModal').style.display = 'flex';
+  hideModal('modeModal');
 }
 
-function finalConfirm() {
-  if (!pendingMode) return;
+function playAgain() {
+  hideModal('endModal');
+  document.getElementById('readyBtn').disabled = false;
+  document.getElementById('readyBtn').textContent = '✅ آماده‌ام!';
+}
 
-  if (MODE_NEEDS_SUIT[pendingMode.mode]) {
-    socket.emit('selectMode', { mode: pendingMode.mode, suit: pendingMode.suit });
+// ==================== Rendering ====================
+function render() {
+  if (!state) return;
+  
+  // امتیازات
+  document.getElementById('score0').textContent = state.totalScores[0];
+  document.getElementById('score1').textContent = state.totalScores[1];
+  
+  // قرارداد و حکم
+  if (state.contract > 100) {
+    document.getElementById('contractDisplay').textContent = `قرارداد: ${state.contract}`;
   } else {
-    socket.emit('selectMode', { mode: pendingMode.mode });
+    document.getElementById('contractDisplay').textContent = '';
   }
-
-  document.getElementById('confirmModal').style.display = 'none';
-  pendingMode = null;
+  
+  if (state.masterSuit) {
+    const suitColor = ['♥', '♦'].includes(state.masterSuit) ? 'color:red' : '';
+    document.getElementById('trumpDisplay').innerHTML = `حکم: <span style="${suitColor}">${state.masterSuit}</span>`;
+  } else if (state.gameMode === 'sars') {
+    document.getElementById('trumpDisplay').textContent = 'سَرس (بدون حکم)';
+  } else {
+    document.getElementById('trumpDisplay').textContent = '';
+  }
+  
+  // بازیکنان دیگر
+  renderOpponents();
+  
+  // کارت‌های بازی شده
+  renderPlayedCards();
+  
+  // دست من
+  renderMyHand();
+  
+  // کنترل‌ها
+  renderControls();
+  
+  // مودال‌ها
+  if (state.phase === 'propose' && state.turn === state.myIndex) {
+    showModal('proposalModal');
+    updateProposalModal();
+  } else if (state.phase === 'selectMode' && state.leader === state.myIndex) {
+    showModal('modeModal');
+  }
 }
 
-function cancelConfirm() {
-  document.getElementById('confirmModal').style.display = 'none';
-  document.getElementById('modeModal').style.display = 'flex';
+function renderPlayerList(players) {
+  const container = document.getElementById('playersList');
+  let html = '';
+  for (let i = 0; i < 4; i++) {
+    const p = players[i];
+    if (p) {
+      const classes = ['player-slot', 'filled'];
+      if (p.ready) classes.push('ready');
+      if (i === myIndex) classes.push('me');
+      html += `
+        <div class="${classes.join(' ')}">
+          <div class="name">${p.name}</div>
+          <div class="status">${p.ready ? '✅ آماده' : '⏳ منتظر'}</div>
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="player-slot">
+          <div class="name">---</div>
+          <div class="status">خالی</div>
+        </div>
+      `;
+    }
+  }
+  container.innerHTML = html;
 }
 
-// ==================== Mode Selection Listeners ====================
+function renderOpponents() {
+  const positions = ['top', 'left', 'right'];
+  const relativeIndices = [
+    (myIndex + 2) % 4, // top (روبرو)
+    (myIndex + 3) % 4, // left
+    (myIndex + 1) % 4  // right
+  ];
+  
+  positions.forEach((pos, i) => {
+    const pIndex = relativeIndices[i];
+    const elem = document.getElementById('player' + pos.charAt(0).toUpperCase() + pos.slice(1));
+    const name = state.players[pIndex]?.name || '---';
+    const count = state.handCounts[pIndex] || 0;
+    
+    elem.classList.toggle('turn', state.turn === pIndex);
+    elem.classList.toggle('leader', state.leader === pIndex);
+    
+    elem.querySelector('.opponent-name').textContent = name;
+    elem.querySelector('.card-count').textContent = count;
+    
+    // پشت کارت‌ها
+    const cardsContainer = elem.querySelector('.opponent-cards');
+    const isHorizontal = pos === 'top';
+    const displayCount = Math.min(count, 6);
+    
+    let cardsHtml = '';
+    for (let j = 0; j < displayCount; j++) {
+      cardsHtml += '<div class="card-back"></div>';
+    }
+    cardsContainer.innerHTML = cardsHtml;
+  });
+}
 
-document.addEventListener('DOMContentLoaded', function() {
+function renderPlayedCards() {
+  const container = document.getElementById('playedCards');
+  
+  if (!state.playedCards || state.playedCards.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  let html = '';
+  state.playedCards.forEach(pc => {
+    const relPos = getRelativePosition(pc.p);
+    const cardHtml = createCardHtml(pc.c, -1, false, 'small');
+    html += `<div class="played-card pos-${relPos}">${cardHtml}</div>`;
+  });
+  container.innerHTML = html;
+}
+
+function renderMyHand() {
+  const container = document.getElementById('myHand');
+  const myName = state.players[myIndex]?.name || 'شما';
+  
+  document.getElementById('myName').textContent = myName;
+  document.getElementById('turnIndicator').textContent = 
+    state.turn === myIndex ? '🎯 نوبت شما' : '';
+  
+  const canSelect = state.phase === 'exchange' && state.leader === myIndex;
+  const canPlay = state.phase === 'playing' && state.turn === myIndex;
+  
+  let html = '';
+  (state.hand || []).forEach((card, i) => {
+    const isSelected = selected.includes(i);
+    const classes = [];
+    if (isSelected) classes.push('selected');
+    if (!canSelect && !canPlay) classes.push('disabled');
+    
+    html += createCardHtml(card, i, isSelected, '', classes.join(' '));
+  });
+  container.innerHTML = html;
+}
+
+function renderControls() {
+  const container = document.getElementById('controls');
+  
+  if (state.phase === 'exchange' && state.leader === myIndex) {
+    container.innerHTML = `
+      <button class="btn-primary" onclick="doExchange()">
+        ✅ تایید تعویض (${selected.length}/4)
+      </button>
+    `;
+  } else {
+    container.innerHTML = '';
+  }
+}
+
+// ==================== Helpers ====================
+function createCardHtml(card, index, isSelected = false, sizeClass = '', extraClass = '') {
+  const color = ['♥', '♦'].includes(card.s) ? 'red' : 'black';
+  const classes = ['card', color, sizeClass, extraClass].filter(Boolean).join(' ');
+  const onclick = index >= 0 ? `onclick="clickCard(${index})"` : '';
+  
+  return `
+    <div class="${classes}" data-index="${index}" ${onclick}>
+      <div class="corner corner-top">
+        <span class="rank">${card.v}</span>
+        <span class="suit-icon">${card.s}</span>
+      </div>
+      <span class="center-suit">${card.s}</span>
+      <div class="corner corner-bottom">
+        <span class="rank">${card.v}</span>
+        <span class="suit-icon">${card.s}</span>
+      </div>
+    </div>
+  `;
+}
+
+function getRelativePosition(playerIndex) {
+  const diff = (playerIndex - myIndex + 4) % 4;
+  // 0 = me (bottom), 1 = right, 2 = top, 3 = left
+  return diff;
+}
+
+function showModal(id) {
+  document.getElementById(id).style.display = 'flex';
+}
+
+function hideModal(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+function showStatus(msg) {
+  document.getElementById('statusMessage').textContent = msg;
+  setTimeout(() => {
+    if (document.getElementById('statusMessage').textContent === msg) {
+      document.getElementById('statusMessage').textContent = '';
+    }
+  }, 3000);
+}
+
+function updateProposalModal() {
+  const minValue = state.leader === -1 ? 100 : state.contract + 5;
+  const input = document.getElementById('proposalValue');
+  input.min = minValue;
+  input.value = minValue;
+  
+  // تاریخچه پیشنهادات
+  const history = document.getElementById('proposalHistory');
+  history.innerHTML = state.proposalLog.map(log => {
+    const name = state.players[log.player]?.name || 'بازیکن';
+    const cls = log.action === 'call' ? 'call' : 'pass';
+    const text = log.action === 'call' ? log.value : 'پاس';
+    return `<div class="proposal-item ${cls}">${name}: ${text}</div>`;
+  }).join('');
+}
+
+function addProposalHistory(data) {
+  const history = document.getElementById('proposalHistory');
+  const cls = data.action === 'call' ? 'call' : 'pass';
+  const text = data.action === 'call' ? data.value : 'پاس';
+  history.innerHTML += `<div class="proposal-item ${cls}">${data.name}: ${text}</div>`;
+}
+
+function updateModeButton() {
+  const btn = document.getElementById('confirmModeBtn');
+  const modeRadio = document.querySelector('input[name="gameMode"]:checked');
+  
+  if (!modeRadio) {
+    btn.disabled = true;
+    btn.textContent = 'حالت را انتخاب کنید';
+    return;
+  }
+  
+  const mode = modeRadio.value;
+  if (mode === 'sars') {
+    btn.disabled = false;
+    btn.textContent = '✅ تایید سَرس';
+  } else if (selectedSuit) {
+    btn.disabled = false;
+    btn.textContent = '✅ تایید انتخاب';
+  } else {
+    btn.disabled = true;
+    btn.textContent = 'خال حکم را انتخاب کنید';
+  }
+}
+
+function showRoundResult(data) {
+  const modal = document.getElementById('resultModal');
+  const title = document.getElementById('resultTitle');
+  const cards = document.getElementById('resultCards');
+  const points = document.getElementById('resultPoints');
+  
+  title.textContent = `🏆 ${data.winnerName} برد!`;
+  
+  cards.innerHTML = data.playedCards.map(pc => {
+    const cls = pc.isWinner ? 'winner' : '';
+    return `<div class="${cls}">${createCardHtml(pc.card, -1, false, 'small')}</div>`;
+  }).join('');
+  
+  points.innerHTML = `
+    امتیاز این دست: ${data.points}<br>
+    تیم ۱: ${data.roundPoints[0]} | تیم ۲: ${data.roundPoints[1]}
+  `;
+  
+  showModal('resultModal');
+  
+  setTimeout(() => hideModal('resultModal'), 2500);
+}
+
+function showMatchEnd(data) {
+  const modal = document.getElementById('endModal');
+  const title = document.getElementById('endTitle');
+  const details = document.getElementById('endDetails');
+  
+  const myTeam = myIndex % 2;
+  const won = data.success ? data.leaderTeam === myTeam : data.leaderTeam !== myTeam;
+  
+  modal.querySelector('.modal-content').className = 'modal-content end-modal ' + (won ? 'win' : 'lose');
+  title.textContent = won ? '🎉 برنده شدید!' : '😔 باختید';
+  
+  const resultText = data.success ? 'قرارداد موفق ✅' : 'قرارداد ناموفق ❌';
+  details.innerHTML = `
+    ${resultText}<br>
+    قرارداد: ${data.contract}<br>
+    امتیاز تیم ۱: ${data.points[0]} | تیم ۲: ${data.points[1]}<br>
+    <hr style="margin:10px 0;border-color:#444">
+    مجموع تیم ۱: ${data.totalScores[0]}<br>
+    مجموع تیم ۲: ${data.totalScores[1]}
+  `;
+  
+  showModal('endModal');
+}
+
+// ==================== Event Listeners ====================
+document.addEventListener('DOMContentLoaded', () => {
+  // Mode selection
   document.querySelectorAll('input[name="gameMode"]').forEach(radio => {
-    radio.addEventListener('change', function () {
-      const mode = this.value;
-      const suitSelector = document.getElementById('suitSelectorWithTrump');
-      const confirmBtn = document.getElementById('confirmModeBtn');
-      const display = document.getElementById('selectedModeDisplay');
-      const displayText = document.getElementById('selectedModeText');
-
-      selectedSuit = null;
-      document.querySelectorAll('.suit-btn').forEach(b => b.classList.remove('selected'));
-
-      if (MODE_NEEDS_SUIT[mode]) {
-        suitSelector.style.display = 'flex';
-        suitSelector.style.flexWrap = 'wrap';
-        display.style.display = 'block';
-        displayText.textContent = `${MODE_NAMES[mode]} - خال حکم را انتخاب کنید`;
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = '⚠️ خال حکم را انتخاب کنید';
-      } else {
+    radio.addEventListener('change', function() {
+      const suitSelector = document.getElementById('suitSelector');
+      if (this.value === 'sars') {
         suitSelector.style.display = 'none';
-        display.style.display = 'block';
-        displayText.textContent = MODE_NAMES[mode] + ' (بدون حکم)';
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = '✅ تایید و شروع بازی';
+        selectedSuit = null;
+      } else {
+        suitSelector.style.display = 'block';
       }
+      updateModeButton();
     });
   });
 });

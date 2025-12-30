@@ -1,176 +1,195 @@
 <!DOCTYPE html>
-<html dir="rtl">
+<html dir="rtl" lang="fa">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>بازی حکم آنلاین</title>
-<link rel="stylesheet" href="css/main.css">
-<link rel="stylesheet" href="css/cards.css">
-<link rel="stylesheet" href="css/modals.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a1628">
+  <title>شلم آنلاین</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-
-<div id="lobby">
-  <div class="box" style="text-align:center">
-    <h2 style="color:#ffd700;margin-bottom:10px">♠️ بازی حکم آنلاین ♥️</h2>
-    <p style="font-size:12px;color:#aaa;margin-bottom:15px">با دوستانتان آنلاین بازی کنید</p>
-    <input id="name" placeholder="نام شما"><br>
-    <input id="room" placeholder="کد اتاق"><br>
-    <button onclick="joinRoom()">🚪 ورود به بازی</button>
-  </div>
-  <div id="playerList" class="box" style="display:none">
-    <b>👥 بازیکنان:</b>
-    <div id="players"></div>
-    <p style="font-size:11px;margin:10px 0;color:#aaa">🔴 تیم۱: بازیکن ۱و۳ | 🔵 تیم۲: بازیکن ۲و۴</p>
-    <button id="readyBtn" onclick="setReady()">✅ آماده‌ام!</button>
-  </div>
-</div>
-
-<div id="game" style="display:none">
-  <div id="scores" class="box">
-    <span class="score-box team0">🔴 تیم۱: <b id="s0">0</b></span>
-    <span class="score-box team1">🔵 تیم۲: <b id="s1">0</b></span>
-  </div>
-
-  <div id="info"></div>
-
-  <!-- نمایش کارت‌های بازیکنان دیگر -->
-  <div id="otherPlayers">
-    <div id="playerTop" class="other-player top">
-      <div class="player-label"></div>
-      <div class="cards-back"></div>
-    </div>
-    <div id="playerLeft" class="other-player left">
-      <div class="player-label"></div>
-      <div class="cards-back"></div>
-    </div>
-    <div id="playerRight" class="other-player right">
-      <div class="player-label"></div>
-      <div class="cards-back"></div>
-    </div>
-  </div>
-
-  <div id="roundScoresBox" class="box" style="display:none;text-align:center">
-    <b>📊 امتیاز این دست:</b> 🔴 تیم۱: <span id="rs0">0</span> | 🔵 تیم۲: <span id="rs1">0</span>
-  </div>
-
-  <div id="propHistoryBox" class="box" style="display:none">
-    <b>📜 روند انتخاب حاکم:</b>
-    <div id="propHistory"></div>
-  </div>
-
-  <div class="box">
-    <div id="dropZone">
-      <div id="played"><span style="color:#777">🎴 کارت را اینجا رها کنید</span></div>
-    </div>
-  </div>
-
-  <div class="box">
-    <b>🃏 دست شما (<span id="handCount">0</span>):</b>
-    <div id="myHand"></div>
-  </div>
-
-  <div id="controls" class="box" style="text-align:center;min-height:45px"></div>
-  
-  <div class="box">
-    <div id="log"></div>
-  </div>
-
-  <!-- دکمه قطع و وصل میکروفون -->
-  <button id="micToggle" onclick="toggleMic()" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:50%;background:#ff5722;color:white;border:none;box-shadow:0 3px 6px rgba(0,0,0,0.3);cursor:pointer">🎤</button>
-</div>
-
-<!-- مودال انتخاب حالت بازی -->
-<div id="modeModal" class="modal-overlay" style="display:none">
-  <div class="modal">
-    <h3>🎯 انتخاب نوع بازی</h3>
-    <p style="color:#aaa;margin-bottom:10px">حالت بازی و خال حکم را انتخاب کنید:</p>
-    
-    <div class="mode-section">
-      <h4>🎴 با حکم (برش می‌شود)</h4>
+  <!-- صفحه لابی -->
+  <div id="lobby">
+    <div class="lobby-container">
+      <div class="logo">
+        <span class="logo-suit red">♥</span>
+        <span class="logo-suit black">♠</span>
+        <h1>شلم آنلاین</h1>
+        <span class="logo-suit red">♦</span>
+        <span class="logo-suit black">♣</span>
+      </div>
       
-      <input type="radio" name="gameMode" id="modeHokm" value="hokm" class="mode-option">
-      <label for="modeHokm" class="mode-label">
-        <div class="mode-title">👑 حکم</div>
-        <div class="mode-desc">حالت استاندارد - آس قوی‌ترین، دولو ضعیف‌ترین</div>
-        <div class="mode-order">قدرت: 2 → 3 → ... → K → A</div>
-      </label>
+      <div class="login-box">
+        <input type="text" id="nameInput" placeholder="نام شما" maxlength="12">
+        <input type="text" id="roomInput" placeholder="کد اتاق" maxlength="10">
+        <button id="joinBtn" onclick="joinRoom()">ورود به بازی</button>
+      </div>
       
-      <input type="radio" name="gameMode" id="modeNars" value="nars" class="mode-option">
-      <label for="modeNars" class="mode-label">
-        <div class="mode-title">⬇️ نَرس</div>
-        <div class="mode-desc">ترتیب معکوس - دولو قوی‌ترین، آس ضعیف‌ترین</div>
-        <div class="mode-order">قدرت: A → K → ... → 3 → 2</div>
-      </label>
-      
-      <input type="radio" name="gameMode" id="modeAsNars" value="asNars" class="mode-option">
-      <label for="modeAsNars" class="mode-label">
-        <div class="mode-title">🅰️ آس نَرس</div>
-        <div class="mode-desc">آس قوی‌ترین، شاه ضعیف‌ترین</div>
-        <div class="mode-order">قدرت: K → Q → ... → 2 → A</div>
-      </label>
-      
-      <div id="suitSelectorWithTrump" class="suit-selector" style="display:none">
-        <span style="color:#aaa;font-size:12px;width:100%;margin-bottom:5px">خال حکم:</span>
-        <button type="button" class="suit-btn black" data-suit="♠" onclick="selectSuit('♠')">♠</button>
-        <button type="button" class="suit-btn red" data-suit="♥" onclick="selectSuit('♥')">♥</button>
-        <button type="button" class="suit-btn red" data-suit="♦" onclick="selectSuit('♦')">♦</button>
-        <button type="button" class="suit-btn black" data-suit="♣" onclick="selectSuit('♣')">♣</button>
+      <div id="waitingRoom" class="waiting-room" style="display:none">
+        <h3>🎴 اتاق انتظار</h3>
+        <div id="playersList"></div>
+        <div class="team-info">
+          <span class="team team1">تیم ۱: بازیکن ۱ و ۳</span>
+          <span class="team team2">تیم ۲: بازیکن ۲ و ۴</span>
+        </div>
+        <button id="readyBtn" onclick="setReady()">✅ آماده‌ام!</button>
       </div>
     </div>
-    
-    <div class="mode-section">
-      <h4>🚫 بدون حکم (برش نمی‌شود)</h4>
-      <input type="radio" name="gameMode" id="modeSars" value="sars" class="mode-option">
-      <label for="modeSars" class="mode-label">
-        <div class="mode-title">🔄 سَرس</div>
-        <div class="mode-desc">بدون حکم - فقط کارت همخال می‌تواند ببرد</div>
-        <div class="mode-order">قدرت: 2 → 3 → ... → K → A</div>
-      </label>
-    </div>
-    
-    <div class="confirm-section">
-      <div id="selectedModeDisplay" class="selected-mode" style="display:none">
-        انتخاب شما: <b id="selectedModeText"></b>
+  </div>
+
+  <!-- صفحه بازی -->
+  <div id="game" style="display:none">
+    <!-- نوار امتیاز بالا -->
+    <div id="topBar">
+      <div class="score-item team1">
+        <span class="team-label">تیم ۱</span>
+        <span class="score-value" id="score0">0</span>
       </div>
-      <button id="confirmModeBtn" onclick="confirmMode()" disabled style="width:100%">
-        ⚠️ ابتدا حالت بازی را انتخاب کنید
-      </button>
+      <div class="game-info">
+        <div id="contractDisplay"></div>
+        <div id="trumpDisplay"></div>
+      </div>
+      <div class="score-item team2">
+        <span class="team-label">تیم ۲</span>
+        <span class="score-value" id="score1">0</span>
+      </div>
+    </div>
+
+    <!-- بازیکن بالا (روبرو) -->
+    <div id="playerTop" class="opponent top">
+      <div class="opponent-info">
+        <span class="opponent-name"></span>
+        <span class="card-count"></span>
+      </div>
+      <div class="opponent-cards"></div>
+    </div>
+
+    <!-- بازیکن چپ -->
+    <div id="playerLeft" class="opponent left">
+      <div class="opponent-info">
+        <span class="opponent-name"></span>
+        <span class="card-count"></span>
+      </div>
+      <div class="opponent-cards"></div>
+    </div>
+
+    <!-- بازیکن راست -->
+    <div id="playerRight" class="opponent right">
+      <div class="opponent-info">
+        <span class="opponent-name"></span>
+        <span class="card-count"></span>
+      </div>
+      <div class="opponent-cards"></div>
+    </div>
+
+    <!-- میز بازی (مرکز) -->
+    <div id="tableCenter">
+      <div id="playedCards"></div>
+      <div id="statusMessage"></div>
+    </div>
+
+    <!-- دست بازیکن (پایین) -->
+    <div id="myHandArea">
+      <div id="myInfo">
+        <span id="myName"></span>
+        <span id="turnIndicator"></span>
+      </div>
+      <div id="myHand"></div>
+    </div>
+
+    <!-- کنترل‌ها -->
+    <div id="controls"></div>
+  </div>
+
+  <!-- مودال پیشنهاد -->
+  <div id="proposalModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <h3>📢 پیشنهاد قرارداد</h3>
+      <div id="proposalHistory"></div>
+      <div class="proposal-controls">
+        <input type="number" id="proposalValue" min="100" max="165" step="5" value="100">
+        <div class="proposal-buttons">
+          <button onclick="submitProposal()" class="btn-call">پیشنهاد</button>
+          <button onclick="passProposal()" class="btn-pass">پاس</button>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- مودال تایید -->
-<div id="confirmModal" class="modal-overlay" style="display:none">
-  <div class="modal">
-    <h3>⚠️ تایید انتخاب</h3>
-    <div style="padding:20px;background:rgba(255,215,0,0.1);border-radius:10px;margin:15px 0">
-      <p style="font-size:18px;margin-bottom:10px">آیا مطمئن هستید؟</p>
-      <p id="confirmModeInfo" style="font-size:16px;color:#ffd700"></p>
-      <p id="confirmModeDesc" style="font-size:12px;color:#aaa;margin-top:10px"></p>
+  <!-- مودال انتخاب حالت -->
+  <div id="modeModal" class="modal" style="display:none">
+    <div class="modal-content mode-modal">
+      <h3>🎯 انتخاب نوع بازی</h3>
+      
+      <div class="mode-options">
+        <label class="mode-option">
+          <input type="radio" name="gameMode" value="hokm">
+          <div class="mode-card">
+            <div class="mode-title">👑 حکم</div>
+            <div class="mode-desc">آس قوی‌ترین</div>
+          </div>
+        </label>
+        
+        <label class="mode-option">
+          <input type="radio" name="gameMode" value="nars">
+          <div class="mode-card">
+            <div class="mode-title">⬇️ نَرس</div>
+            <div class="mode-desc">دولو قوی‌ترین</div>
+          </div>
+        </label>
+        
+        <label class="mode-option">
+          <input type="radio" name="gameMode" value="asNars">
+          <div class="mode-card">
+            <div class="mode-title">🅰️ آس‌نَرس</div>
+            <div class="mode-desc">آس قوی، شاه ضعیف</div>
+          </div>
+        </label>
+        
+        <label class="mode-option">
+          <input type="radio" name="gameMode" value="sars">
+          <div class="mode-card">
+            <div class="mode-title">🚫 سَرس</div>
+            <div class="mode-desc">بدون حکم</div>
+          </div>
+        </label>
+      </div>
+      
+      <div id="suitSelector" class="suit-selector" style="display:none">
+        <p>خال حکم:</p>
+        <div class="suits">
+          <button class="suit-btn" data-suit="♠" onclick="selectSuit('♠')">♠</button>
+          <button class="suit-btn red" data-suit="♥" onclick="selectSuit('♥')">♥</button>
+          <button class="suit-btn red" data-suit="♦" onclick="selectSuit('♦')">♦</button>
+          <button class="suit-btn" data-suit="♣" onclick="selectSuit('♣')">♣</button>
+        </div>
+      </div>
+      
+      <button id="confirmModeBtn" onclick="confirmMode()" disabled>انتخاب کنید</button>
     </div>
-    <p style="font-size:12px;color:#f66;margin-bottom:15px">⚠️ پس از تایید، امکان تغییر وجود ندارد!</p>
-    <button onclick="finalConfirm()" style="background:linear-gradient(145deg,#4CAF50,#388E3C);width:45%">✅ بله</button>
-    <button onclick="cancelConfirm()" class="danger" style="width:45%">❌ انصراف</button>
   </div>
-</div>
 
-<!-- مودال نتیجه دست -->
-<div id="resultModal" class="modal-overlay" style="display:none">
-  <div class="modal result-modal">
-    <h3>🏆 نتیجه دست</h3>
-    <div id="resultCards" class="result-cards"></div>
-    <div id="resultInfo" class="result-info"></div>
-    <div id="countdown" class="countdown"></div>
+  <!-- مودال نتیجه -->
+  <div id="resultModal" class="modal" style="display:none">
+    <div class="modal-content result-modal">
+      <h3 id="resultTitle"></h3>
+      <div id="resultCards"></div>
+      <div id="resultPoints"></div>
+    </div>
   </div>
-</div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/cards.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/app.js"></script>
-<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-<script src="js/voice.js"></script>
+  <!-- مودال پایان بازی -->
+  <div id="endModal" class="modal" style="display:none">
+    <div class="modal-content end-modal">
+      <h2 id="endTitle"></h2>
+      <div id="endDetails"></div>
+      <button onclick="playAgain()">🔄 بازی مجدد</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

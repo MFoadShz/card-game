@@ -1,16 +1,18 @@
 const { RANK_ORDERS } = require('./Deck');
 
 function calculateScore(cards) {
-  let p = Math.floor(cards.length / 4) * 5;
+  let points = Math.floor(cards.length / 4) * 5;
   for (let c of cards) {
-    if (c.v === '5') p += 5;
-    else if (c.v === '10') p += 10;
-    else if (c.v === 'A') p += 10;
+    if (c.v === '5') points += 5;
+    else if (c.v === '10') points += 10;
+    else if (c.v === 'A') points += 10;
   }
-  return p;
+  return points;
 }
 
 function resolveRoundWinner(playedCards, gameMode, masterSuit) {
+  if (playedCards.length !== 4) return 0;
+  
   let winnerIndex = 0;
   let best = playedCards[0].c;
   let leadSuit = best.s;

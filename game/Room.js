@@ -63,15 +63,23 @@ class Room {
 
     for (let i = 0; i < 4; i++) {
       this.hands[i] = [];
-      for (let j = 0; j < 12; j++) this.hands[i].push(deck.pop());
+      for (let j = 0; j < 12; j++) {
+        this.hands[i].push(deck.pop());
+      }
       this.hands[i] = sortCards(this.hands[i]);
     }
-    for (let i = 0; i < 4; i++) this.centerStack.push(deck.pop());
+    for (let i = 0; i < 4; i++) {
+      this.centerStack.push(deck.pop());
+    }
   }
 
   submitProposal(playerIndex, value) {
     if (this.phase !== 'propose' || this.turn !== playerIndex) return false;
-    if (value > this.contract && value <= 165 && value % 5 === 0) {
+    
+    // اصلاح: اولین پیشنهاد می‌تواند 100 باشد
+    const minValue = this.leader === -1 ? 100 : this.contract + 5;
+    
+    if (value >= minValue && value <= 165 && value % 5 === 0) {
       this.contract = value;
       this.leader = playerIndex;
       this.proposalLog.push({ player: playerIndex, action: 'call', value });
@@ -92,15 +100,21 @@ class Room {
   }
 
   nextProposer() {
+    let attempts = 0;
     do {
       this.turn = (this.turn + 1) % 4;
+      attempts++;
+      if (attempts > 4) break; // جلوگیری از حلقه بی‌نهایت
     } while (this.passed[this.turn]);
   }
 
   finishProposalPhase() {
-    let winner = parseInt(Object.keys(this.passed).find(k => !this.passed[k]));
+    // اگر هیچکس پیشنهاد نداده، ریستارت
     if (this.leader === -1) return 'restart';
-
+    
+    // برنده کسی است که پاس نکرده
+    let winner = parseInt(Object.keys(this.passed).find(k => !this.passed[k]));
+    
     this.leader = winner;
     this.phase = 'exchange';
     this.turn = this.leader;
@@ -121,6 +135,8 @@ class Room {
         exchanged.push(hand.splice(i, 1)[0]);
       }
     }
+
+    if (exchanged.length !== 4) return false;
 
     this.centerStack = exchanged;
     this.hands[playerIndex] = sortCards(this.hands[playerIndex]);
@@ -160,6 +176,7 @@ class Room {
 
     let card = hand[cardIndex];
 
+    // بررسی قانون همخال
     if (this.playedCards.length > 0) {
       let leadSuit = this.playedCards[0].c.s;
       let hasSuit = hand.some(c => c.s === leadSuit);
@@ -168,8 +185,6 @@ class Room {
 
     hand.splice(cardIndex, 1);
     this.playedCards.push({ p: playerIndex, c: card });
-
-    // انتقال نوبت به بازیکن بعدی
     this.turn = (this.turn + 1) % 4;
 
     return card;
@@ -258,7 +273,8 @@ class Room {
         Math.floor(this.collectedCards[1].length / 4)
       ],
       roundPoints: this.roundPoints,
-      totalScores: this.totalScores
+      totalScores: this.totalScores,
+      players: this.players.map(p => ({ name: p.name, connected: p.connected }))
     };
   }
 
