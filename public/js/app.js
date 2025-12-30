@@ -16,11 +16,9 @@ let draggedIndex = -1;
 let touchStartTime = 0;
 let isTouchDevice = false;
 
-// === Timer Variables (New) ===
+// === Timer Variables ===
 let timerInterval = null;
 let remainingTime = 30;
-// Add after existing variables
-
 
 // === Socket Connection ===
 socket.on('connect', () => console.log('Connected'));
@@ -35,9 +33,8 @@ socket.on('roomCreated', async data => {
   isHost = data.isHost;
   scoreLimit = data.scoreLimit;
   showWaitingRoom();
-  // فرض بر این است که initVoiceChat در فایل دیگری یا همین فایل تعریف شده است
   if (typeof initVoiceChat === 'function') {
-      await initVoiceChat(socket, myIndex);
+    await initVoiceChat(socket, myIndex);
   }
 });
 
@@ -50,7 +47,7 @@ socket.on('roomJoined', async data => {
     addLog('اتصال مجدد برقرار شد', 'info');
   }
   if (typeof initVoiceChat === 'function') {
-      await initVoiceChat(socket, myIndex);
+    await initVoiceChat(socket, myIndex);
   }
 });
 
@@ -88,10 +85,10 @@ socket.on('modeSelected', data => {
 });
 
 socket.on('cardAction', data => {
-    // اگر لاجیک خاصی برای انیمیشن کارت‌ها دارید اینجا قرار می‌گیرد
+  // اگر لاجیک خاصی برای انیمیشن کارت‌ها دارید اینجا قرار می‌گیرد
 });
 
-// === Timer & Bot Events (New) ===
+// === Timer & Bot Events ===
 socket.on('timerStart', data => {
   startTimerUI(data.duration);
 });
@@ -262,11 +259,10 @@ function resetGame() {
   socket.emit('resetGame');
 }
 
-// === Render Function (Updated) ===
-
-function render(){
+// === Render Function ===
+function render() {
   if (!state) return;
-  
+
   const gameEl = document.getElementById('game');
   const isMyTurn = state.turn === state.myIndex;
   const isProposing = state.phase === 'propose';
@@ -276,7 +272,7 @@ function render(){
 
   document.getElementById('score0').textContent = state.totalScores[0];
   document.getElementById('score1').textContent = state.totalScores[1];
-  
+
   if (document.getElementById('scoreLimitGame')) {
     document.getElementById('scoreLimitGame').textContent = `سقف: ${state.scoreLimit || 500}`;
   }
@@ -300,17 +296,6 @@ function render(){
   renderPlayedCards();
   renderMyHand();
   renderControls();
-
-  // Animate cards after dealing
-  if (dealingAnimation.isDealing === false && isFirstRender) {
-    isFirstRender = false;
-    setTimeout(() => {
-      dealingAnimation.animateHand(document.getElementById('myHand'));
-      ['Top', 'Left', 'Right'].forEach(pos => {
-        dealingAnimation.animateOpponent(document.getElementById('player' + pos));
-      });
-    }, 100);
-  }
 
   const dropHint = document.getElementById('dropHint');
   if (dropHint) {
@@ -346,6 +331,7 @@ function render(){
     showModal('modeModal');
   }
 }
+
 // === Rendering Helpers ===
 function renderPlayerList(players) {
   const container = document.getElementById('playersList');
@@ -856,7 +842,6 @@ function showGameOver(data) {
     <p>سقف امتیاز: ${data.scoreLimit}</p>
   `;
 
-  // Render match history
   let historyHtml = '<h4>تاریخچه دست‌ها:</h4>';
   data.matchHistory.forEach((match, idx) => {
     const modeNames = { hokm: 'حکم', nars: 'نرس', asNars: 'آس‌نرس', sars: 'سرس' };
@@ -872,7 +857,7 @@ function showGameOver(data) {
           ${match.success ? '✅' : '❌'}
         </div>
         <div class="match-cards">
-          ${match.gameHistory.slice(0, 20).map(h => 
+          ${match.gameHistory.slice(0, 20).map(h =>
             `<span class="history-card ${['♥','♦'].includes(h.card.s) ? 'red' : 'black'}">${h.card.v}${h.card.s}</span>`
           ).join('')}
           ${match.gameHistory.length > 20 ? '...' : ''}
@@ -896,7 +881,7 @@ function showGameOver(data) {
 // === DOM & Window Events ===
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('input[name="gameMode"]').forEach(radio => {
-    radio.addEventListener('change', function() {
+    radio.addEventListener('change', function () {
       const suitSelector = document.getElementById('suitSelector');
       if (this.value === 'sars') {
         suitSelector.style.display = 'none';
@@ -921,16 +906,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// === Helper Functions for Timer (New) ===
+// === Timer Functions ===
 function startTimerUI(duration) {
   stopTimerUI();
   remainingTime = duration;
   updateTimerDisplay();
-  
+
   timerInterval = setInterval(() => {
     remainingTime--;
     updateTimerDisplay();
-    
+
     if (remainingTime <= 0) {
       stopTimerUI();
     }
@@ -947,18 +932,15 @@ function stopTimerUI() {
 function updateTimerDisplay() {
   const timerEl = document.getElementById('turnTimer');
   if (!timerEl) return;
-  
-  // اگر نوبت ما نیست یا state نداریم، شاید بخواهیم تایمر را مخفی کنیم
-  // اما در کد اصلی شما چک می‌کند که turn === myIndex باشد
+
   if (!state || state.turn !== state.myIndex) {
     timerEl.style.display = 'none';
     return;
   }
-  
+
   timerEl.style.display = 'block';
   timerEl.textContent = `⏱️ ${remainingTime}`;
-  
-  // تغییر رنگ بر اساس زمان باقیمانده
+
   if (remainingTime <= 5) {
     timerEl.classList.add('critical');
     timerEl.classList.remove('warning');
