@@ -1,3 +1,5 @@
+/* public/css/style.css */
+
 /* ==================== Reset & Base ==================== */
 * {
   margin: 0;
@@ -256,7 +258,6 @@ body {
   color: var(--red);
 }
 
-/* Voice Indicator on players */
 .voice-indicator {
   font-size: 12px;
   opacity: 0;
@@ -325,7 +326,7 @@ body {
   75% { content: '...'; }
 }
 
-/* Top Bar */
+/* ==================== Top Bar ==================== */
 #topBar {
   display: flex;
   justify-content: space-between;
@@ -637,203 +638,133 @@ body {
   white-space: nowrap;
 }
 
-/* ==================== My Hand ==================== */
+/* ==================== My Hand - Arc Layout ==================== */
 #myHandArea {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding-bottom: calc(10px + var(--safe-bottom));
-  z-index: 55;
-  transition: all 0.3s ease;
+  z-index: 100;
+  pointer-events: none; /* فقط کارت‌ها کلیک‌پذیر باشند */
 }
 
 #myInfo {
   display: flex;
-  justify-content: center;
-  align-items: center;
   gap: 10px;
-  padding: 5px;
-  font-size: 12px;
+  margin-bottom: 5px;
+  background: rgba(0,0,0,0.6);
+  padding: 5px 15px;
+  border-radius: 15px;
+  font-size: 14px;
+  pointer-events: auto;
 }
 
 #myName {
-  background: rgba(0, 0, 0, 0.5);
-  padding: 3px 12px;
-  border-radius: 15px;
-}
-
-#turnIndicator {
   color: var(--gold);
   font-weight: bold;
 }
 
+#turnIndicator {
+  color: var(--green);
+}
+
 #myHand {
-  display: flex;
-  justify-content: center;
-  padding: 0 10px;
-  min-height: 100px;
-  transition: all 0.3s ease;
+  width: 100%;
+  height: 120px;
+  position: relative;
+  overflow: visible;
+  pointer-events: auto;
 }
 
-/* انیمیشن نوبت بازیکن */
-.my-turn #myHandArea {
-  transform: translateY(-20px);
+/* ==================== My Hand Cards ==================== */
+#myHand .card {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  margin: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transform-origin: center 200%;
+  will-change: transform;
 }
 
-.my-turn #myHand {
-  transform: scale(1.1);
+/* هاور روی کارت - بالا آوردن */
+#myHand .card:hover:not(.disabled) {
+  transform: var(--card-transform) translateY(-20px) scale(1.08) !important;
+  z-index: 100 !important;
+  box-shadow: 0 15px 30px rgba(0,0,0,0.5);
 }
 
-.my-turn #myHand .card {
-  box-shadow: 0 5px 20px rgba(255, 215, 0, 0.3);
+/* کارت انتخاب شده */
+#myHand .card.selected {
+  transform: var(--card-transform) translateY(-25px) !important;
+  box-shadow: 0 0 20px var(--gold), 0 10px 30px rgba(0,0,0,0.5);
+  z-index: 99 !important;
+}
+
+/* کارت غیرفعال */
+#myHand .card.disabled {
+  filter: grayscale(80%) brightness(0.6);
+  cursor: not-allowed;
+}
+
+#myHand .card.disabled:hover {
+  transform: var(--card-transform) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: auto !important;
+}
+
+/* ==================== Turn Animation ==================== */
+.my-turn #myHand .card:not(.disabled) {
+  animation: cardGlow 1.5s ease-in-out infinite alternate;
 }
 
 .my-turn #turnIndicator {
-  animation: turnBlink 0.8s infinite;
+  animation: blink 1s ease-in-out infinite;
 }
 
-@keyframes turnBlink {
+@keyframes cardGlow {
+  from { filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.3)); }
+  to { filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.7)); }
+}
+
+@keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
 
-/* ==================== Cards - اصلاح شده ==================== */
-.card {
-  width: 52px;
-  height: 76px;
-  background: var(--card-white);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 4px;
-  cursor: pointer;
-  transition: transform 0.2s, margin-top 0.2s, box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  position: relative;
-  touch-action: none;
-  flex-shrink: 0;
-}
-
-/* اصلاح overlap کارت‌ها - کارت سمت چپ روی کارت سمت راست */
-#myHand {
-  direction: ltr; /* برای z-index صحیح */
-}
-
-#myHand .card {
-  margin-left: -15px;
-}
-
-#myHand .card:first-child {
-  margin-left: 0;
-}
-
-/* هر کارت z-index بالاتر از قبلی */
-#myHand .card:nth-child(1) { z-index: 1; }
-#myHand .card:nth-child(2) { z-index: 2; }
-#myHand .card:nth-child(3) { z-index: 3; }
-#myHand .card:nth-child(4) { z-index: 4; }
-#myHand .card:nth-child(5) { z-index: 5; }
-#myHand .card:nth-child(6) { z-index: 6; }
-#myHand .card:nth-child(7) { z-index: 7; }
-#myHand .card:nth-child(8) { z-index: 8; }
-#myHand .card:nth-child(9) { z-index: 9; }
-#myHand .card:nth-child(10) { z-index: 10; }
-#myHand .card:nth-child(11) { z-index: 11; }
-#myHand .card:nth-child(12) { z-index: 12; }
-#myHand .card:nth-child(13) { z-index: 13; }
-#myHand .card:nth-child(14) { z-index: 14; }
-#myHand .card:nth-child(15) { z-index: 15; }
-#myHand .card:nth-child(16) { z-index: 16; }
-
-.card:hover {
-  transform: translateY(-15px);
-  z-index: 100 !important;
-}
-
-.card.selected {
-  transform: translateY(-20px);
-  box-shadow: 0 0 15px var(--gold);
-  z-index: 100 !important;
-}
-
-.card.disabled {
-  /* opacity: 0.5; را حذف کنید */
-  filter: grayscale(100%) brightness(0.7); /* کارت را توسی و تیره‌تر می‌کند اما شفاف نمی‌کند */
-  pointer-events: none;
-}
-
-.card.dragging {
-  opacity: 0.8;
-  transform: scale(1.1) rotate(5deg);
-  z-index: 1000 !important;
-  pointer-events: none;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.card .corner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-}
-
-.card .corner-top {
-  align-self: flex-start;
-}
-
-.card .corner-bottom {
-  align-self: flex-end;
-  transform: rotate(180deg);
-}
-
-.card .rank {
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.card .suit-icon {
-  font-size: 12px;
-}
-
-.card .center-suit {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 24px;
-}
-
-.card.red { color: var(--card-red); }
-.card.black { color: var(--card-black); }
-
-/* Small cards for played area */
+/* ==================== Small Cards (Played Area) ==================== */
 .card.small {
   width: 42px;
   height: 60px;
   margin: 0;
   cursor: default;
+  position: relative;
 }
 
 .card.small .rank { font-size: 11px; }
 .card.small .suit-icon { font-size: 10px; }
 .card.small .center-suit { font-size: 18px; }
 
-/* Ghost card while dragging */
+/* ==================== Ghost Card (Dragging) ==================== */
 .card-ghost {
-  position: fixed;
-  pointer-events: none;
-  z-index: 9999;
+  position: fixed !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
   opacity: 0.9;
-  transform: rotate(5deg) scale(1.1);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+  transform: scale(1.1) !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  transition: none !important;
 }
 
 /* ==================== Controls ==================== */
 #controls {
   position: fixed;
-  bottom: calc(120px + var(--safe-bottom));
+  bottom: calc(160px + var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1160,15 +1091,35 @@ body {
   cursor: pointer;
 }
 
+
 /* ==================== Responsive ==================== */
-@media (max-height: 600px) {
+@media (max-width: 360px) {
   .card {
     width: 44px;
     height: 64px;
   }
   
-  .card .rank { font-size: 12px; }
-  .card .center-suit { font-size: 20px; }
+  .card .rank { font-size: 11px; }
+  .card .suit-icon { font-size: 10px; }
+  .card .center-suit { font-size: 18px; }
+}
+
+@media (max-height: 600px) {
+  #myHand {
+    height: 100px;
+  }
+  
+  #myHandArea {
+    padding-bottom: 5px;
+  }
+  
+  .card {
+    width: 44px;
+    height: 64px;
+  }
+  
+  .card .rank { font-size: 11px; }
+  .card .center-suit { font-size: 18px; }
   
   #tableCenter {
     width: 160px;
@@ -1180,13 +1131,17 @@ body {
   }
 }
 
-@media (min-width: 400px) {
+@media (min-width: 500px) {
   .card {
-    width: 56px;
-    height: 82px;
+    width: 60px;
+    height: 88px;
   }
   
-  #myHand .card {
-    margin-left: -12px;
+  .card .rank { font-size: 16px; }
+  .card .suit-icon { font-size: 14px; }
+  .card .center-suit { font-size: 28px; }
+  
+  #myHand {
+    height: 140px;
   }
 }

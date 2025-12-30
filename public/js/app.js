@@ -1,12 +1,19 @@
+/* public/js/app.js */
+
 const socket = io();
+
+// ==================== State Variables ====================
 let myIndex = -1;
 let state = null;
 let selected = [];
 let selectedSuit = null;
 let playerNames = [];
+
+// Drag & Drop Variables
 let draggedCard = null;
 let draggedIndex = -1;
-let dragOffset = { x: 0, y: 0 };
+let offsetX = 0;
+let offsetY = 0;
 
 // ==================== Socket Events ====================
 socket.on('connect', () => console.log('Connected'));
@@ -221,11 +228,9 @@ function render() {
     const waitingMsg = document.getElementById('waitingMessage');
     
     if (state.turn === state.myIndex) {
-      // نوبت من - نمایش منوی پیشنهاد
       overlay.style.display = 'none';
       showProposalPanel();
     } else {
-      // نوبت دیگران - نمایش پیام انتظار
       hideProposalPanel();
       overlay.style.display = 'flex';
       
@@ -322,28 +327,95 @@ function renderPlayedCards() {
 
 function renderMyHand() {
   const container = document.getElementById('myHand');
-  const myName = state.players[myIndex]?.name || 'شما';
+  const hand = state.hand || [];
+  const cardCount = hand.length;
   
+  // نام بازیکن
+  const myName = playerNames[myIndex] || 'شما';
   document.getElementById('myName').textContent = myName;
   document.getElementById('turnIndicator').textContent = 
-    state.turn === myIndex ? '🎯 نوبت شما' : '';
+    (state.turn === state.myIndex && state.phase === 'playing') ? '🎯 نوبت شماست!' : '';
   
-  const canSelect = state.phase === 'exchange' && state.leader === myIndex;
-  const canPlay = state.phase === 'playing' && state.turn === myIndex;
+  if (cardCount === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  // ==================== محاسبات بر اساس viewport ====================
+  const viewportWidth = window.innerWidth;
+  const cardWidth = 52;
+  const sidePadding = 20; // فاصله از لبه‌های صفحه
+  
+  // پهنای قابل استفاده برای پخش کارت‌ها
+  // باید جوری باشد که کارت اول و آخر کامل در صفحه باشند
+  const usableWidth = viewportWidth - (sidePadding * 2) - cardWidth;
+  
+  // حداکثر چرخش بر اساس تعداد کارت
+  const maxRotation = Math.min(25, cardCount * 1.5);
+  
+  // ارتفاع قوس (چقدر کارت‌های کناری پایین‌تر باشند)
+  const arcHeight = Math.min(30, cardCount * 2);
   
   let html = '';
-  (state.hand || []).forEach((card, i) => {
+  
+  hand.forEach((card, i) => {
     const isSelected = selected.includes(i);
-    const classes = [];
+    const isLeader = state.leader === state.myIndex;
+    const isExchange = state.phase === 'exchange' && isLeader;
+    const isPlaying = state.phase === 'playing' && state.turn === state.myIndex;
+    const canSelect = isExchange;
+    const canPlay = isPlaying;
+    
+    // ==================== محاسبه موقعیت هر کارت ====================
+    // نسبت موقعیت: 0 = اولین کارت، 1 = آخرین کارت
+    const ratio = cardCount > 1 ? i / (cardCount - 1) : 0.5;
+    
+    // موقعیت افقی: از -usableWidth/2 تا +usableWidth/2
+    const xOffset = (ratio - 0.5) * usableWidth;
+    
+    // چرخش: کارت چپ منفی، کارت راست مثبت
+    const rotation = (ratio - 0.5) * 2 * maxRotation;
+    
+    // فاصله از مرکز (0 = وسط، 1 = کناره‌ها)
+    const distanceFromCenter = Math.abs(ratio - 0.5) * 2;
+    
+    // موقعیت عمودی: کارت‌های کناری پایین‌تر (منحنی)
+    const yOffset = Math.pow(distanceFromCenter, 2) * arcHeight;
+    
+    // z-index: کارت‌های وسط بالاتر از کناره‌ها
+    const zIndex = Math.round((1 - distanceFromCenter) * cardCount) + 1;
+    
+    // ==================== ساخت HTML کارت ====================
+    const classes = ['card'];
+    const color = ['♥', '♦'].includes(card.s) ? 'red' : 'black';
+    classes.push(color);
     if (isSelected) classes.push('selected');
     if (!canSelect && !canPlay) classes.push('disabled');
     
-    html += createCardHtml(card, i, isSelected, '', classes.join(' '));
+    // transform با calc برای مرکز کردن
+    const transform = `translateX(calc(-50% + ${xOffset}px)) translateY(${yOffset}px) rotate(${rotation}deg)`;
+    
+    html += `
+      <div class="${classes.join(' ')}" 
+           data-index="${i}" 
+           onclick="clickCard(${i})"
+           style="--card-transform: ${transform}; transform: ${transform}; z-index: ${zIndex};">
+        <div class="corner corner-top">
+          <span class="rank">${card.v}</span>
+          <span class="suit-icon">${card.s}</span>
+        </div>
+        <div class="center-suit">${card.s}</div>
+        <div class="corner corner-bottom">
+          <span class="rank">${card.v}</span>
+          <span class="suit-icon">${card.s}</span>
+        </div>
+      </div>`;
   });
+  
   container.innerHTML = html;
   
-  // Setup drag events
-  if (canPlay) {
+  // Setup drag events فقط در نوبت بازیکن
+  if (state.phase === 'playing' && state.turn === state.myIndex) {
     setupDragEvents();
   }
 }
@@ -367,7 +439,6 @@ function showProposalPanel() {
   const panel = document.getElementById('proposalPanel');
   panel.style.display = 'block';
   
-  // ساخت grid اعداد
   const grid = document.getElementById('proposalGrid');
   let html = '';
   
@@ -387,8 +458,6 @@ function showProposalPanel() {
   }
   
   grid.innerHTML = html;
-  
-  // لاگ کوچک
   updateProposalLogMiniFromState();
 }
 
@@ -438,48 +507,56 @@ function setupDragEvents() {
 }
 
 function handleDragStart(e) {
-  if (!state || state.phase !== 'playing' || state.turn !== myIndex) return;
+  if (state.phase !== 'playing' || state.turn !== state.myIndex) return;
   
   const card = e.target.closest('.card');
   if (!card || card.classList.contains('disabled')) return;
   
   e.preventDefault();
-  
   draggedIndex = parseInt(card.dataset.index);
   if (isNaN(draggedIndex)) return;
   
   const rect = card.getBoundingClientRect();
   const point = e.touches ? e.touches[0] : e;
   
-  dragOffset.x = point.clientX - rect.left;
-  dragOffset.y = point.clientY - rect.top;
+  offsetX = point.clientX - rect.left - rect.width / 2;
+  offsetY = point.clientY - rect.top - rect.height / 2;
   
-  // ساخت ghost card
+  // ساخت ghost بدون چرخش
   draggedCard = card.cloneNode(true);
   draggedCard.classList.add('card-ghost');
-  draggedCard.style.width = rect.width + 'px';
-  draggedCard.style.height = rect.height + 'px';
+  draggedCard.style.transform = 'scale(1.1)';
+  draggedCard.style.position = 'fixed';
+  draggedCard.style.zIndex = '9999';
+  draggedCard.style.pointerEvents = 'none';
+  draggedCard.style.transition = 'none';
+  draggedCard.style.margin = '0';
+  
   document.body.appendChild(draggedCard);
   
-  updateGhostPosition(point);
-  
+  // مخفی کردن کارت اصلی
   card.style.opacity = '0.3';
+  
+  updateGhostPosition(point);
 }
 
 function handleDragMove(e) {
   if (!draggedCard) return;
   
   e.preventDefault();
-  
   const point = e.touches ? e.touches[0] : e;
   updateGhostPosition(point);
   
-  // Check if over drop zone
+  // بررسی آیا روی drop zone است
   const dropZone = document.getElementById('dropZone');
   const dropRect = dropZone.getBoundingClientRect();
   
-  if (point.clientX >= dropRect.left && point.clientX <= dropRect.right &&
-      point.clientY >= dropRect.top && point.clientY <= dropRect.bottom) {
+  const isOver = point.clientX >= dropRect.left && 
+                 point.clientX <= dropRect.right && 
+                 point.clientY >= dropRect.top && 
+                 point.clientY <= dropRect.bottom;
+  
+  if (isOver) {
     dropZone.classList.add('drag-over');
   } else {
     dropZone.classList.remove('drag-over');
@@ -492,16 +569,17 @@ function handleDragEnd(e) {
   const dropZone = document.getElementById('dropZone');
   const wasOverDrop = dropZone.classList.contains('drag-over');
   
-  // Cleanup
-  dropZone.classList.remove('drag-over');
+  // حذف ghost
   draggedCard.remove();
   draggedCard = null;
   
-  // Reset original card opacity
+  dropZone.classList.remove('drag-over');
+  
+  // برگرداندن opacity کارت‌ها
   const cards = document.querySelectorAll('#myHand .card');
   cards.forEach(c => c.style.opacity = '1');
   
-  // Play card if dropped in zone
+  // اگر روی drop zone رها شد، کارت را بازی کن
   if (wasOverDrop && draggedIndex >= 0) {
     playCard(draggedIndex);
   }
@@ -512,8 +590,8 @@ function handleDragEnd(e) {
 function updateGhostPosition(point) {
   if (!draggedCard) return;
   
-  draggedCard.style.left = (point.clientX - dragOffset.x) + 'px';
-  draggedCard.style.top = (point.clientY - dragOffset.y) + 'px';
+  draggedCard.style.left = (point.clientX - offsetX) + 'px';
+  draggedCard.style.top = (point.clientY - offsetY) + 'px';
 }
 
 // ==================== Helpers ====================
@@ -613,7 +691,6 @@ function showRoundResult(data) {
   `;
   
   showModal('resultModal');
-  
   setTimeout(() => hideModal('resultModal'), 2500);
 }
 
