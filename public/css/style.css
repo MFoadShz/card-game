@@ -1,6 +1,5 @@
-/* public/css/style.css */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100&family=Space+Grotesk:wght@300&display=swap');
 
-/* ==================== Reset & Base ==================== */
 * {
   margin: 0;
   padding: 0;
@@ -20,9 +19,9 @@
   --blue: #3498db;
   --team1: #e74c3c;
   --team2: #3498db;
-  --card-white: #fefefe;
-  --card-red: #c0392b;
-  --card-black: #1a1a1a;
+  --card-white: #f5f5f5;
+  --card-red: #de4b4b;
+  --card-black: #141414;
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
 }
@@ -37,6 +36,209 @@ html, body {
 
 body {
   background: radial-gradient(ellipse at center, #1a3a5c 0%, #0a1628 100%);
+}
+
+/* ==================== Playing Cards ==================== */
+.card {
+  font-family: "Space Grotesk", "Roboto", sans-serif;
+  background-color: var(--card-white);
+  border-radius: 8px;
+  position: absolute;
+  box-shadow:
+    0px 2px 4px rgba(0, 0, 0, 0.1),
+    0px 4px 8px rgba(0, 0, 0, 0.1),
+    0px 8px 16px rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.15s;
+  overflow: hidden;
+}
+
+.card.black {
+  color: var(--card-black);
+}
+
+.card.red {
+  color: var(--card-red);
+}
+
+.card .corner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px;
+  position: absolute;
+  line-height: 1;
+}
+
+.card .corner-top {
+  top: 2px;
+  left: 2px;
+}
+
+.card .corner-bottom {
+  bottom: 2px;
+  right: 2px;
+  transform: rotate(180deg);
+}
+
+.card .rank {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.card .suit-icon {
+  font-size: 14px;
+  margin-top: 1px;
+}
+
+.card .center-suit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  opacity: 0.85;
+}
+
+/* ==================== Small Cards (Played Area) ==================== */
+.card.small {
+  width: 48px !important;
+  height: 70px !important;
+  cursor: default;
+  position: relative;
+}
+
+.card.small .corner {
+  padding: 2px;
+}
+
+.card.small .rank {
+  font-size: 11px;
+}
+
+.card.small .suit-icon {
+  font-size: 10px;
+}
+
+.card.small .center-suit {
+  font-size: 22px;
+}
+
+/* ==================== My Hand Area ==================== */
+#myHandArea {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: calc(5px + var(--safe-bottom));
+  z-index: 100;
+  pointer-events: none;
+}
+
+#myInfo {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 5px;
+  background: rgba(0,0,0,0.6);
+  padding: 5px 15px;
+  border-radius: 15px;
+  font-size: 14px;
+  pointer-events: auto;
+}
+
+#myName {
+  color: var(--gold);
+  font-weight: bold;
+}
+
+#turnIndicator {
+  color: var(--green);
+}
+
+#myHand {
+  width: 100%;
+  height: 130px;
+  position: relative;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+/* ==================== Fan Layout Cards ==================== */
+#myHand .card {
+  position: absolute;
+  left: 50%;
+  bottom: 15px;
+  transform: translateX(-50%) rotate(var(--angle, 0deg));
+  transform-origin: center var(--fan-radius, 350px);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s;
+}
+
+/* هاور - فقط کمی بالا می‌آید در همان راستا */
+#myHand .card:hover:not(.disabled):not(.selected):not(.dragging) {
+  transform: translateX(-50%) rotate(var(--angle, 0deg)) translateY(-20px);
+  z-index: 200 !important;
+  box-shadow:
+    0px 10px 25px rgba(0, 0, 0, 0.35),
+    0px 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+/* انتخاب شده - بالاتر می‌آید در همان راستا */
+#myHand .card.selected {
+  transform: translateX(-50%) rotate(var(--angle, 0deg)) translateY(-30px);
+  border-color: var(--gold);
+  box-shadow: 0 0 25px var(--gold), 0 15px 35px rgba(0,0,0,0.4);
+  z-index: 199 !important;
+}
+
+/* غیرفعال */
+#myHand .card.disabled {
+  filter: grayscale(70%) brightness(0.7);
+  cursor: not-allowed;
+}
+
+#myHand .card.disabled:hover {
+  transform: translateX(-50%) rotate(var(--angle, 0deg));
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* در حال درگ شدن - مخفی می‌شود */
+#myHand .card.dragging {
+  opacity: 0.3;
+  transform: translateX(-50%) rotate(var(--angle, 0deg));
+}
+
+/* ==================== Turn Glow ==================== */
+.my-turn #myHand .card:not(.disabled) {
+  animation: cardGlow 1.5s ease-in-out infinite alternate;
+}
+
+.my-turn #turnIndicator {
+  animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes cardGlow {
+  from { filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.4)); }
+  to { filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.8)); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ==================== Ghost Card (Dragging) ==================== */
+.card-ghost {
+  position: fixed !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+  opacity: 0.95;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.5) !important;
+  transition: none !important;
+  transform: rotate(-5deg) !important;
 }
 
 /* ==================== Lobby ==================== */
@@ -76,7 +278,6 @@ body {
 
 .logo-suit.red { color: var(--red); }
 .logo-suit.black { color: white; }
-
 .logo-suit:nth-child(2) { animation-delay: 0.5s; }
 .logo-suit:nth-child(4) { animation-delay: 1s; }
 .logo-suit:nth-child(5) { animation-delay: 1.5s; }
@@ -193,7 +394,7 @@ body {
 .team.team1 { color: var(--team1); }
 .team.team2 { color: var(--team2); }
 
-/* ==================== Game Screen ==================== */
+/* ==================== Game Layout ==================== */
 #game {
   height: 100%;
   display: flex;
@@ -204,7 +405,6 @@ body {
   padding-bottom: var(--safe-bottom);
 }
 
-/* ==================== Voice Controls ==================== */
 #voiceControls {
   position: fixed;
   top: calc(50px + var(--safe-top));
@@ -308,10 +508,6 @@ body {
   font-size: 24px;
   font-weight: bold;
   margin-bottom: 10px;
-}
-
-.waiting-message .dots {
-  display: inline-block;
 }
 
 .waiting-message .dots::after {
@@ -453,7 +649,6 @@ body {
   margin-right: 4px;
 }
 
-/* Top Opponent */
 .opponent.top {
   top: 50px;
   left: 50%;
@@ -466,7 +661,6 @@ body {
   margin-top: 5px;
 }
 
-/* Left Opponent */
 .opponent.left {
   left: -20px;
   top: 50%;
@@ -486,7 +680,6 @@ body {
   margin-right: -15px;
 }
 
-/* Right Opponent */
 .opponent.right {
   right: -20px;
   top: 50%;
@@ -554,8 +747,8 @@ body {
 
 #dropZone {
   position: relative;
-  width: 160px;
-  height: 160px;
+  width: 180px;
+  height: 180px;
   border: 2px dashed transparent;
   border-radius: 20px;
   transition: all 0.3s;
@@ -584,8 +777,8 @@ body {
 
 #playedCards {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 160px;
+  height: 160px;
 }
 
 .played-card {
@@ -617,7 +810,7 @@ body {
   transform: translateY(-50%);
 }
 
-.played-card.winner {
+.played-card.winner .card {
   animation: winPulse 0.5s ease;
   box-shadow: 0 0 20px var(--gold);
 }
@@ -638,133 +831,10 @@ body {
   white-space: nowrap;
 }
 
-/* ==================== My Hand - Arc Layout ==================== */
-#myHandArea {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-bottom: calc(10px + var(--safe-bottom));
-  z-index: 100;
-  pointer-events: none; /* فقط کارت‌ها کلیک‌پذیر باشند */
-}
-
-#myInfo {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 5px;
-  background: rgba(0,0,0,0.6);
-  padding: 5px 15px;
-  border-radius: 15px;
-  font-size: 14px;
-  pointer-events: auto;
-}
-
-#myName {
-  color: var(--gold);
-  font-weight: bold;
-}
-
-#turnIndicator {
-  color: var(--green);
-}
-
-#myHand {
-  width: 100%;
-  height: 120px;
-  position: relative;
-  overflow: visible;
-  pointer-events: auto;
-}
-
-/* ==================== My Hand Cards ==================== */
-#myHand .card {
-  position: absolute;
-  left: 50%;
-  bottom: 10px;
-  margin: 0;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  transform-origin: center 200%;
-  will-change: transform;
-}
-
-/* هاور روی کارت - بالا آوردن */
-#myHand .card:hover:not(.disabled) {
-  transform: var(--card-transform) translateY(-20px) scale(1.08) !important;
-  z-index: 100 !important;
-  box-shadow: 0 15px 30px rgba(0,0,0,0.5);
-}
-
-/* کارت انتخاب شده */
-#myHand .card.selected {
-  transform: var(--card-transform) translateY(-25px) !important;
-  box-shadow: 0 0 20px var(--gold), 0 10px 30px rgba(0,0,0,0.5);
-  z-index: 99 !important;
-}
-
-/* کارت غیرفعال */
-#myHand .card.disabled {
-  filter: grayscale(80%) brightness(0.6);
-  cursor: not-allowed;
-}
-
-#myHand .card.disabled:hover {
-  transform: var(--card-transform) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  z-index: auto !important;
-}
-
-/* ==================== Turn Animation ==================== */
-.my-turn #myHand .card:not(.disabled) {
-  animation: cardGlow 1.5s ease-in-out infinite alternate;
-}
-
-.my-turn #turnIndicator {
-  animation: blink 1s ease-in-out infinite;
-}
-
-@keyframes cardGlow {
-  from { filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.3)); }
-  to { filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.7)); }
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* ==================== Small Cards (Played Area) ==================== */
-.card.small {
-  width: 42px;
-  height: 60px;
-  margin: 0;
-  cursor: default;
-  position: relative;
-}
-
-.card.small .rank { font-size: 11px; }
-.card.small .suit-icon { font-size: 10px; }
-.card.small .center-suit { font-size: 18px; }
-
-/* ==================== Ghost Card (Dragging) ==================== */
-.card-ghost {
-  position: fixed !important;
-  pointer-events: none !important;
-  z-index: 9999 !important;
-  opacity: 0.9;
-  transform: scale(1.1) !important;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-  transition: none !important;
-}
-
 /* ==================== Controls ==================== */
 #controls {
   position: fixed;
-  bottom: calc(160px + var(--safe-bottom));
+  bottom: calc(145px + var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -942,7 +1012,6 @@ body {
   margin-bottom: 20px;
 }
 
-/* Mode Modal */
 .mode-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1039,7 +1108,6 @@ body {
   font-weight: bold;
 }
 
-/* Result Modal */
 .result-modal {
   text-align: center;
 }
@@ -1047,9 +1115,13 @@ body {
 #resultCards {
   display: flex;
   justify-content: center;
-  gap: 5px;
+  gap: 8px;
   margin-bottom: 15px;
   flex-wrap: wrap;
+}
+
+#resultCards .card {
+  position: relative;
 }
 
 #resultPoints {
@@ -1057,7 +1129,6 @@ body {
   color: var(--green);
 }
 
-/* End Modal */
 .end-modal {
   text-align: center;
 }
@@ -1091,35 +1162,19 @@ body {
   cursor: pointer;
 }
 
-
 /* ==================== Responsive ==================== */
-@media (max-width: 360px) {
-  .card {
-    width: 44px;
-    height: 64px;
-  }
-  
-  .card .rank { font-size: 11px; }
-  .card .suit-icon { font-size: 10px; }
-  .card .center-suit { font-size: 18px; }
-}
-
-@media (max-height: 600px) {
+@media (max-height: 650px) {
   #myHand {
     height: 100px;
   }
   
   #myHandArea {
-    padding-bottom: 5px;
+    padding-bottom: 2px;
   }
   
-  .card {
-    width: 44px;
-    height: 64px;
+  #controls {
+    bottom: calc(115px + var(--safe-bottom));
   }
-  
-  .card .rank { font-size: 11px; }
-  .card .center-suit { font-size: 18px; }
   
   #tableCenter {
     width: 160px;
@@ -1128,20 +1183,5 @@ body {
   
   .proposal-panel {
     max-height: 55vh;
-  }
-}
-
-@media (min-width: 500px) {
-  .card {
-    width: 60px;
-    height: 88px;
-  }
-  
-  .card .rank { font-size: 16px; }
-  .card .suit-icon { font-size: 14px; }
-  .card .center-suit { font-size: 28px; }
-  
-  #myHand {
-    height: 140px;
   }
 }

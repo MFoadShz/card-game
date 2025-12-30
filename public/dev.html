@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>حالت توسعه - شلم</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    #devPanel {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.9);
+      border: 2px solid #ffd700;
+      border-radius: 10px;
+      padding: 15px;
+      z-index: 9999;
+      max-width: 300px;
+      font-size: 12px;
+    }
+    #devPanel h3 {
+      color: #ffd700;
+      margin: 0 0 10px 0;
+      font-size: 14px;
+    }
+    #devPanel .section {
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #333;
+    }
+    #devPanel .section-title {
+      color: #888;
+      font-size: 11px;
+      margin-bottom: 5px;
+    }
+    #devPanel button {
+      background: #2a4a7a;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      margin: 2px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    #devPanel button:hover {
+      background: #3a6aaa;
+    }
+    #devPanel button.primary {
+      background: #4a8a4a;
+    }
+    #devPanel button.danger {
+      background: #8a4a4a;
+    }
+    #devPanel select {
+      background: #1a2a4a;
+      color: white;
+      border: 1px solid #444;
+      padding: 5px;
+      border-radius: 5px;
+      width: 100%;
+      margin-bottom: 5px;
+    }
+    #devPanel .info {
+      color: #aaa;
+      font-size: 10px;
+      margin-top: 5px;
+    }
+    #togglePanel {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: #ffd700;
+      color: black;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 10000;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <button id="togglePanel" onclick="toggleDevPanel()">🔧 Dev</button>
+  
+  <div id="devPanel">
+    <h3>🔧 پنل توسعه‌دهنده</h3>
+    
+    <div class="section">
+      <div class="section-title">شروع سریع</div>
+      <button class="primary" onclick="devQuickStart('playing')">▶️ بازی</button>
+      <button onclick="devQuickStart('proposing')">📢 پیشنهاد</button>
+      <button onclick="devQuickStart('exchanging')">🔄 تعویض</button>
+      <button onclick="devQuickStart('modeSelection')">🎯 انتخاب نوع</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">تنظیمات شروع</div>
+      <select id="devGameMode">
+        <option value="hokm">حکم</option>
+        <option value="nars">نَرس</option>
+        <option value="asNars">آس‌نَرس</option>
+        <option value="sars">سَرس</option>
+      </select>
+      <select id="devMasterSuit">
+        <option value="♠">♠ پیک</option>
+        <option value="♥">♥ دل</option>
+        <option value="♦">♦ خشت</option>
+        <option value="♣">♣ گشنیز</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <div class="section-title">کنترل بات‌ها</div>
+      <button onclick="devBotPlay()">🤖 بازی یک بات</button>
+      <button class="primary" onclick="devBotPlayAll()">🤖🤖🤖 بازی همه بات‌ها</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">شبیه‌سازی</div>
+      <button onclick="devSimulateProposal()">📢 پیشنهادات</button>
+      <button onclick="devSimulateExchange()">🔄 تعویض</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">عملیات</div>
+      <button onclick="devRefresh()">🔄 رفرش وضعیت</button>
+      <button class="danger" onclick="location.reload()">🔁 ریستارت کامل</button>
+    </div>
+
+    <div class="info">
+      💡 کلیدهای میانبر:<br>
+      B = بازی بات | R = رفرش | P = شروع بازی
+    </div>
+  </div>
+
+  <div id="lobby" style="display:none"></div>
+  
+  <div id="game" style="display:none">
+    <div id="proposalOverlay" class="proposal-overlay" style="display:none">
+      <div id="waitingMessage" class="waiting-message"></div>
+    </div>
+    <div id="topBar">
+      <div class="score-item team1">
+        <span class="team-label">تیم ۱</span>
+        <span class="score-value" id="score0">0</span>
+      </div>
+      <div class="game-info">
+        <div id="contractDisplay"></div>
+        <div id="trumpDisplay"></div>
+      </div>
+      <div class="score-item team2">
+        <span class="team-label">تیم ۲</span>
+        <span class="score-value" id="score1">0</span>
+      </div>
+    </div>
+    <div id="voiceControls" style="display:none"></div>
+    <div id="playerTop" class="opponent top">
+      <div class="opponent-info">
+        <span class="opponent-name"></span>
+        <span class="card-count"></span>
+      </div>
+      <div class="opponent-cards"></div>
+    </div>
+    <div id="playerLeft" class="opponent left">
+      <div class="opponent-info">
+        <span class="opponent-name"></span>
+        <span class="card-count"></span>
+      </div>
+      <div class="opponent-cards"></div>
+    </div>
+    <div id="playerRight" class="opponent right">
+      <div class="opponent-info">
+        <span class="opponent-name"></span>
+        <span class="card-count"></span>
+      </div>
+      <div class="opponent-cards"></div>
+    </div>
+    <div id="tableCenter">
+      <div id="dropZone">
+        <div id="playedCards"></div>
+        <div id="dropHint" style="display:none">🎴 کارت را اینجا رها کنید</div>
+      </div>
+      <div id="statusMessage"></div>
+    </div>
+    <div id="gameLog"></div>
+    <div id="myHandArea">
+      <div id="myInfo">
+        <span id="myName"></span>
+        <span id="turnIndicator"></span>
+      </div>
+      <div id="myHand"></div>
+    </div>
+    <div id="controls"></div>
+    <div id="proposalPanel" class="proposal-panel" style="display:none">
+      <div class="proposal-header">
+        <h3>📢 انتخاب قرارداد</h3>
+        <div id="proposalLogMini" class="proposal-log-mini"></div>
+      </div>
+      <div id="proposalGrid" class="proposal-grid"></div>
+      <button class="btn-pass-big" onclick="passProposal()">❌ پاس</button>
+    </div>
+  </div>
+
+  <div id="modeModal" class="modal" style="display:none">
+    <div class="modal-content mode-modal">
+      <h3>🎯 انتخاب نوع بازی</h3>
+      <div class="mode-options">
+        <label class="mode-option">
+          <input type="radio" name="gameMode" value="hokm">
+          <div class="mode-card">
+            <div class="mode-title">👑 حکم</div>
+            <div class="mode-desc">آس قوی‌ترین</div>
+          </div>
+        </label>
+        <label class="mode-option">
+          <input type="radio" name="gameMode" value="nars">
+          <div class="mode-card">
+            <div class="mode-title">⬇️ نَرس</div>
+            <div class="mode-desc">دولو قوی‌ترین</div>
+          </div>
+        </label>
+        <label class="mode-option">
+          <input type="radio" name="gameMode" value="asNars">
+          <div class="mode-card">
+            <div class="mode-title">🅰️ آس‌نَرس</div>
+            <div class="mode-desc">آس قوی، شاه ضعیف</div>
+          </div>
+        </label>
+        <label class="mode-option">
+          <input type="radio" name="gameMode" value="sars">
+          <div class="mode-card">
+            <div class="mode-title">🚫 سَرس</div>
+            <div class="mode-desc">بدون حکم</div>
+          </div>
+        </label>
+      </div>
+      <div id="suitSelector" class="suit-selector" style="display:none">
+        <p>خال حکم:</p>
+        <div class="suits">
+          <button class="suit-btn" data-suit="♠" onclick="selectSuit('♠')">♠</button>
+          <button class="suit-btn red" data-suit="♥" onclick="selectSuit('♥')">♥</button>
+          <button class="suit-btn red" data-suit="♦" onclick="selectSuit('♦')">♦</button>
+          <button class="suit-btn" data-suit="♣" onclick="selectSuit('♣')">♣</button>
+        </div>
+      </div>
+      <button id="confirmModeBtn" onclick="confirmMode()" disabled>انتخاب کنید</button>
+    </div>
+  </div>
+
+  <div id="resultModal" class="modal" style="display:none">
+    <div class="modal-content result-modal">
+      <h3 id="resultTitle"></h3>
+      <div id="resultCards"></div>
+      <div id="resultPoints"></div>
+    </div>
+  </div>
+
+  <div id="endModal" class="modal" style="display:none">
+    <div class="modal-content end-modal">
+      <h2 id="endTitle"></h2>
+      <div id="endDetails"></div>
+      <button onclick="playAgain()">🔄 بازی مجدد</button>
+    </div>
+  </div>
+
+  <div id="audioContainer" style="display:none"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // Dev Mode Functions
+    let devPanelVisible = true;
+
+    function toggleDevPanel() {
+      devPanelVisible = !devPanelVisible;
+      document.getElementById('devPanel').style.display = devPanelVisible ? 'block' : 'none';
+    }
+
+    function devQuickStart(phase) {
+      const options = {
+        phase: phase,
+        gameMode: document.getElementById('devGameMode').value,
+        masterSuit: document.getElementById('devMasterSuit').value,
+        contract: 100
+      };
+      socket.emit('devQuickStart', options);
+    }
+
+    function devBotPlay() {
+      socket.emit('devBotPlay');
+    }
+
+    function devBotPlayAll() {
+      socket.emit('devBotPlayAll');
+    }
+
+    function devSimulateProposal() {
+      socket.emit('devSimulateProposal');
+    }
+
+    function devSimulateExchange() {
+      socket.emit('devSimulateExchange');
+    }
+
+    function devRefresh() {
+      socket.emit('devRefresh');
+    }
+
+    // Auto-join on load
+    window.addEventListener('load', () => {
+      socket.emit('devJoin');
+      document.getElementById('game').style.display = 'flex';
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      
+      switch(e.key.toLowerCase()) {
+        case 'b':
+          devBotPlayAll();
+          break;
+        case 'r':
+          devRefresh();
+          break;
+        case 'p':
+          devQuickStart('playing');
+          break;
+        case 'd':
+          toggleDevPanel();
+          break;
+      }
+    });
+  </script>
+</body>
+</html>

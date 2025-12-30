@@ -1,23 +1,16 @@
-/* public/js/app.js */
-
 const socket = io();
-
-// ==================== State Variables ====================
 let myIndex = -1;
 let state = null;
 let selected = [];
 let selectedSuit = null;
 let playerNames = [];
-
-// Drag & Drop Variables
 let draggedCard = null;
+let draggedCardEl = null;
 let draggedIndex = -1;
-let offsetX = 0;
-let offsetY = 0;
+let touchStartTime = 0;
+let isTouchDevice = false;
 
-// ==================== Socket Events ====================
 socket.on('connect', () => console.log('Connected'));
-
 socket.on('error', msg => {
   alert(msg);
 });
@@ -25,12 +18,9 @@ socket.on('error', msg => {
 socket.on('joined', async data => {
   myIndex = data.index;
   document.getElementById('waitingRoom').style.display = 'block';
-  
   if (data.isRejoin) {
     addLog('اتصال مجدد برقرار شد', 'info');
   }
-  
-  // شروع Voice Chat
   const voiceInitialized = await initVoiceChat(socket, myIndex);
   if (!voiceInitialized) {
     console.warn('Voice chat not initialized');
@@ -69,9 +59,7 @@ socket.on('modeSelected', data => {
   addLog(`🎯 ${data.name}: ${modeName}${suitText}`, 'info');
 });
 
-socket.on('cardAction', data => {
-  // انیمیشن کارت بازی شده
-});
+socket.on('cardAction', data => {});
 
 socket.on('roundResult', data => {
   showRoundResult(data);
@@ -90,7 +78,6 @@ socket.on('playerDisconnected', data => {
   addLog(`❌ ${data.name} قطع شد`, 'info');
 });
 
-// ==================== Actions ====================
 function joinRoom() {
   const name = document.getElementById('nameInput').value.trim();
   const room = document.getElementById('roomInput').value.trim();
@@ -111,6 +98,7 @@ function clickCard(index) {
   if (!state) return;
   
   if (state.phase === 'exchange' && state.myIndex === state.leader) {
+    // انتخاب/لغو انتخاب کارت برای تعویض
     if (selected.includes(index)) {
       selected = selected.filter(i => i !== index);
     } else if (selected.length < 4) {
@@ -118,6 +106,7 @@ function clickCard(index) {
     }
     render();
   } else if (state.phase === 'playing' && state.turn === state.myIndex) {
+    // پخش کارت با کلیک/تپ
     playCard(index);
   }
 }
@@ -154,7 +143,6 @@ function selectSuit(suit) {
 function confirmMode() {
   const modeRadio = document.querySelector('input[name="gameMode"]:checked');
   if (!modeRadio) return;
-  
   const mode = modeRadio.value;
   if (mode === 'sars') {
     socket.emit('selectMode', { mode });
@@ -170,7 +158,6 @@ function playAgain() {
   document.getElementById('readyBtn').textContent = '✅ آماده‌ام!';
 }
 
-// ==================== Rendering ====================
 function render() {
   if (!state) return;
   
@@ -178,15 +165,12 @@ function render() {
   const isMyTurn = state.turn === state.myIndex;
   const isProposing = state.phase === 'propose';
   
-  // کلاس‌های حالت
   gameEl.classList.toggle('my-turn', isMyTurn && state.phase === 'playing');
   gameEl.classList.toggle('game-proposing', isProposing && state.turn !== state.myIndex);
   
-  // امتیازات
   document.getElementById('score0').textContent = state.totalScores[0];
   document.getElementById('score1').textContent = state.totalScores[1];
   
-  // قرارداد و حکم
   if (state.contract > 100) {
     document.getElementById('contractDisplay').textContent = `قرارداد: ${state.contract}`;
   } else {
@@ -202,19 +186,11 @@ function render() {
     document.getElementById('trumpDisplay').textContent = '';
   }
   
-  // بازیکنان دیگر
   renderOpponents();
-  
-  // کارت‌های بازی شده
   renderPlayedCards();
-  
-  // دست من
   renderMyHand();
-  
-  // کنترل‌ها
   renderControls();
   
-  // Drop zone hint
   const dropHint = document.getElementById('dropHint');
   if (isMyTurn && state.phase === 'playing' && state.playedCards.length < 4) {
     dropHint.style.display = 'block';
@@ -222,18 +198,15 @@ function render() {
     dropHint.style.display = 'none';
   }
   
-  // مودال‌ها و پیشنهاد
   if (state.phase === 'propose') {
     const overlay = document.getElementById('proposalOverlay');
     const waitingMsg = document.getElementById('waitingMessage');
-    
     if (state.turn === state.myIndex) {
       overlay.style.display = 'none';
       showProposalPanel();
     } else {
       hideProposalPanel();
       overlay.style.display = 'flex';
-      
       const currentPlayerName = state.players[state.turn]?.name || 'بازیکن';
       waitingMsg.innerHTML = `
         <span class="player-name">${currentPlayerName}</span>
@@ -293,13 +266,11 @@ function renderOpponents() {
     
     elem.classList.toggle('turn', state.turn === pIndex);
     elem.classList.toggle('leader', state.leader === pIndex);
-    
     elem.querySelector('.opponent-name').textContent = name;
     elem.querySelector('.card-count').textContent = count;
     
     const cardsContainer = elem.querySelector('.opponent-cards');
     const displayCount = Math.min(count, 6);
-    
     let cardsHtml = '';
     for (let j = 0; j < displayCount; j++) {
       cardsHtml += '<div class="card-back"></div>';
@@ -310,7 +281,6 @@ function renderOpponents() {
 
 function renderPlayedCards() {
   const container = document.getElementById('playedCards');
-  
   if (!state.playedCards || state.playedCards.length === 0) {
     container.innerHTML = '';
     return;
@@ -319,7 +289,7 @@ function renderPlayedCards() {
   let html = '';
   state.playedCards.forEach(pc => {
     const relPos = getRelativePosition(pc.p);
-    const cardHtml = createCardHtml(pc.c, -1, false, 'small');
+    const cardHtml = createCardHtml(pc.c, 'small');
     html += `<div class="played-card pos-${relPos}">${cardHtml}</div>`;
   });
   container.innerHTML = html;
@@ -329,11 +299,10 @@ function renderMyHand() {
   const container = document.getElementById('myHand');
   const hand = state.hand || [];
   const cardCount = hand.length;
-  
-  // نام بازیکن
   const myName = playerNames[myIndex] || 'شما';
+  
   document.getElementById('myName').textContent = myName;
-  document.getElementById('turnIndicator').textContent = 
+  document.getElementById('turnIndicator').textContent =
     (state.turn === state.myIndex && state.phase === 'playing') ? '🎯 نوبت شماست!' : '';
   
   if (cardCount === 0) {
@@ -341,23 +310,29 @@ function renderMyHand() {
     return;
   }
   
-  // ==================== محاسبات بر اساس viewport ====================
   const viewportWidth = window.innerWidth;
-  const cardWidth = 52;
-  const sidePadding = 20; // فاصله از لبه‌های صفحه
   
-  // پهنای قابل استفاده برای پخش کارت‌ها
-  // باید جوری باشد که کارت اول و آخر کامل در صفحه باشند
-  const usableWidth = viewportWidth - (sidePadding * 2) - cardWidth;
+  // سایز کارت بر اساس عرض صفحه
+  let cardWidth;
+  if (viewportWidth < 350) {
+    cardWidth = 48;
+  } else if (viewportWidth < 400) {
+    cardWidth = 54;
+  } else if (viewportWidth < 500) {
+    cardWidth = 60;
+  } else {
+    cardWidth = 68;
+  }
   
-  // حداکثر چرخش بر اساس تعداد کارت
-  const maxRotation = Math.min(25, cardCount * 1.5);
+  const cardHeight = Math.round(cardWidth * 1.45);
   
-  // ارتفاع قوس (چقدر کارت‌های کناری پایین‌تر باشند)
-  const arcHeight = Math.min(30, cardCount * 2);
+  // پارامترهای Fan
+  const totalAngle = Math.min(55, 4 + cardCount * 4);
+  const angleStep = cardCount > 1 ? totalAngle / (cardCount - 1) : 0;
+  const startAngle = -totalAngle / 2;
+  const fanRadius = Math.max(280, 400 - cardCount * 8);
   
   let html = '';
-  
   hand.forEach((card, i) => {
     const isSelected = selected.includes(i);
     const isLeader = state.leader === state.myIndex;
@@ -366,45 +341,29 @@ function renderMyHand() {
     const canSelect = isExchange;
     const canPlay = isPlaying;
     
-    // ==================== محاسبه موقعیت هر کارت ====================
-    // نسبت موقعیت: 0 = اولین کارت، 1 = آخرین کارت
-    const ratio = cardCount > 1 ? i / (cardCount - 1) : 0.5;
+    const angle = startAngle + (i * angleStep);
+    const zIndex = i + 1;
     
-    // موقعیت افقی: از -usableWidth/2 تا +usableWidth/2
-    const xOffset = (ratio - 0.5) * usableWidth;
-    
-    // چرخش: کارت چپ منفی، کارت راست مثبت
-    const rotation = (ratio - 0.5) * 2 * maxRotation;
-    
-    // فاصله از مرکز (0 = وسط، 1 = کناره‌ها)
-    const distanceFromCenter = Math.abs(ratio - 0.5) * 2;
-    
-    // موقعیت عمودی: کارت‌های کناری پایین‌تر (منحنی)
-    const yOffset = Math.pow(distanceFromCenter, 2) * arcHeight;
-    
-    // z-index: کارت‌های وسط بالاتر از کناره‌ها
-    const zIndex = Math.round((1 - distanceFromCenter) * cardCount) + 1;
-    
-    // ==================== ساخت HTML کارت ====================
-    const classes = ['card'];
     const color = ['♥', '♦'].includes(card.s) ? 'red' : 'black';
-    classes.push(color);
+    const classes = ['card', color];
     if (isSelected) classes.push('selected');
     if (!canSelect && !canPlay) classes.push('disabled');
     
-    // transform با calc برای مرکز کردن
-    const transform = `translateX(calc(-50% + ${xOffset}px)) translateY(${yOffset}px) rotate(${rotation}deg)`;
-    
     html += `
-      <div class="${classes.join(' ')}" 
-           data-index="${i}" 
-           onclick="clickCard(${i})"
-           style="--card-transform: ${transform}; transform: ${transform}; z-index: ${zIndex};">
+      <div class="${classes.join(' ')}"
+           data-index="${i}"
+           style="
+             --angle: ${angle}deg;
+             --fan-radius: ${fanRadius}px;
+             width: ${cardWidth}px;
+             height: ${cardHeight}px;
+             z-index: ${zIndex};
+           ">
         <div class="corner corner-top">
           <span class="rank">${card.v}</span>
           <span class="suit-icon">${card.s}</span>
         </div>
-        <div class="center-suit">${card.s}</div>
+        <span class="center-suit">${card.s}</span>
         <div class="corner corner-bottom">
           <span class="rank">${card.v}</span>
           <span class="suit-icon">${card.s}</span>
@@ -414,15 +373,235 @@ function renderMyHand() {
   
   container.innerHTML = html;
   
-  // Setup drag events فقط در نوبت بازیکن
-  if (state.phase === 'playing' && state.turn === state.myIndex) {
-    setupDragEvents();
+  // اضافه کردن event listeners
+  setupCardInteractions();
+}
+
+function setupCardInteractions() {
+  const cards = document.querySelectorAll('#myHand .card');
+  
+  cards.forEach(card => {
+    // Touch events
+    card.addEventListener('touchstart', handleTouchStart, { passive: false });
+    card.addEventListener('touchmove', handleTouchMove, { passive: false });
+    card.addEventListener('touchend', handleTouchEnd);
+    card.addEventListener('touchcancel', handleTouchEnd);
+    
+    // Mouse events (برای دسکتاپ)
+    card.addEventListener('mousedown', handleMouseDown);
+    card.addEventListener('click', handleCardClick);
+  });
+}
+
+function handleCardClick(e) {
+  // فقط برای دسکتاپ - تاچ از طریق touchend هندل می‌شود
+  if (isTouchDevice) return;
+  
+  const card = e.target.closest('.card');
+  if (!card || card.classList.contains('disabled')) return;
+  
+  const index = parseInt(card.dataset.index);
+  if (isNaN(index)) return;
+  
+  clickCard(index);
+}
+
+function handleTouchStart(e) {
+  isTouchDevice = true;
+  
+  const card = e.target.closest('.card');
+  if (!card || card.classList.contains('disabled')) return;
+  
+  e.preventDefault();
+  touchStartTime = Date.now();
+  
+  draggedIndex = parseInt(card.dataset.index);
+  if (isNaN(draggedIndex)) return;
+  
+  draggedCardEl = card;
+  
+  // ذخیره موقعیت اولیه لمس
+  const touch = e.touches[0];
+  const rect = card.getBoundingClientRect();
+  
+  // آفست از گوشه راست پایین کارت
+  card._offsetX = touch.clientX - rect.right + 10;
+  card._offsetY = touch.clientY - rect.bottom + 10;
+  card._startX = touch.clientX;
+  card._startY = touch.clientY;
+  card._moved = false;
+}
+
+function handleTouchMove(e) {
+  if (draggedIndex < 0 || !draggedCardEl) return;
+  
+  e.preventDefault();
+  const touch = e.touches[0];
+  
+  // بررسی آیا واقعاً حرکت کرده
+  const dx = Math.abs(touch.clientX - draggedCardEl._startX);
+  const dy = Math.abs(touch.clientY - draggedCardEl._startY);
+  
+  if (dx > 10 || dy > 10) {
+    draggedCardEl._moved = true;
+    
+    // ایجاد ghost card اگر هنوز نشده
+    if (!draggedCard) {
+      createGhostCard(draggedCardEl, touch);
+    }
+    
+    // آپدیت موقعیت ghost
+    if (draggedCard) {
+      // گوشه راست پایین کارت زیر انگشت باشد
+      draggedCard.style.left = (touch.clientX - draggedCard.offsetWidth + 15) + 'px';
+      draggedCard.style.top = (touch.clientY - draggedCard.offsetHeight + 15) + 'px';
+    }
+    
+    // بررسی drop zone
+    checkDropZone(touch.clientX, touch.clientY);
   }
+}
+
+function handleTouchEnd(e) {
+  if (draggedIndex < 0) return;
+  
+  const touchDuration = Date.now() - touchStartTime;
+  const wasDragging = draggedCardEl && draggedCardEl._moved;
+  const dropZone = document.getElementById('dropZone');
+  const wasOverDrop = dropZone.classList.contains('drag-over');
+  
+  // پاکسازی ghost
+  if (draggedCard) {
+    draggedCard.remove();
+    draggedCard = null;
+  }
+  
+  // برداشتن کلاس dragging
+  if (draggedCardEl) {
+    draggedCardEl.classList.remove('dragging');
+  }
+  
+  dropZone.classList.remove('drag-over');
+  
+  const index = draggedIndex;
+  draggedIndex = -1;
+  draggedCardEl = null;
+  
+  if (wasDragging && wasOverDrop) {
+    // درگ شد و روی drop zone رها شد
+    if (state.phase === 'playing' && state.turn === state.myIndex) {
+      playCard(index);
+    }
+  } else if (!wasDragging && touchDuration < 300) {
+    // تپ ساده
+    clickCard(index);
+  }
+}
+
+function handleMouseDown(e) {
+  if (isTouchDevice) return;
+  
+  const card = e.target.closest('.card');
+  if (!card || card.classList.contains('disabled')) return;
+  if (state.phase !== 'playing' || state.turn !== state.myIndex) return;
+  
+  e.preventDefault();
+  
+  draggedIndex = parseInt(card.dataset.index);
+  if (isNaN(draggedIndex)) return;
+  
+  draggedCardEl = card;
+  
+  const rect = card.getBoundingClientRect();
+  card._offsetX = e.clientX - rect.right + 10;
+  card._offsetY = e.clientY - rect.bottom + 10;
+  card._startX = e.clientX;
+  card._startY = e.clientY;
+  card._moved = false;
+  
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+}
+
+function handleMouseMove(e) {
+  if (draggedIndex < 0 || !draggedCardEl) return;
+  
+  const dx = Math.abs(e.clientX - draggedCardEl._startX);
+  const dy = Math.abs(e.clientY - draggedCardEl._startY);
+  
+  if (dx > 5 || dy > 5) {
+    draggedCardEl._moved = true;
+    
+    if (!draggedCard) {
+      createGhostCard(draggedCardEl, e);
+    }
+    
+    if (draggedCard) {
+      draggedCard.style.left = (e.clientX - draggedCard.offsetWidth + 15) + 'px';
+      draggedCard.style.top = (e.clientY - draggedCard.offsetHeight + 15) + 'px';
+    }
+    
+    checkDropZone(e.clientX, e.clientY);
+  }
+}
+
+function handleMouseUp(e) {
+  document.removeEventListener('mousemove', handleMouseMove);
+  document.removeEventListener('mouseup', handleMouseUp);
+  
+  if (draggedIndex < 0) return;
+  
+  const wasDragging = draggedCardEl && draggedCardEl._moved;
+  const dropZone = document.getElementById('dropZone');
+  const wasOverDrop = dropZone.classList.contains('drag-over');
+  
+  if (draggedCard) {
+    draggedCard.remove();
+    draggedCard = null;
+  }
+  
+  if (draggedCardEl) {
+    draggedCardEl.classList.remove('dragging');
+  }
+  
+  dropZone.classList.remove('drag-over');
+  
+  const index = draggedIndex;
+  draggedIndex = -1;
+  draggedCardEl = null;
+  
+  if (wasDragging && wasOverDrop) {
+    playCard(index);
+  }
+  // اگر درگ نشده، click handler خودش کار می‌کند
+}
+
+function createGhostCard(card, point) {
+  card.classList.add('dragging');
+  
+  draggedCard = card.cloneNode(true);
+  draggedCard.classList.remove('selected', 'disabled', 'dragging');
+  draggedCard.classList.add('card-ghost');
+  draggedCard.style.width = card.offsetWidth + 'px';
+  draggedCard.style.height = card.offsetHeight + 'px';
+  draggedCard.style.left = (point.clientX - card.offsetWidth + 15) + 'px';
+  draggedCard.style.top = (point.clientY - card.offsetHeight + 15) + 'px';
+  
+  document.body.appendChild(draggedCard);
+}
+
+function checkDropZone(x, y) {
+  const dropZone = document.getElementById('dropZone');
+  const rect = dropZone.getBoundingClientRect();
+  
+  const isOver = x >= rect.left && x <= rect.right && 
+                 y >= rect.top && y <= rect.bottom;
+  
+  dropZone.classList.toggle('drag-over', isOver);
 }
 
 function renderControls() {
   const container = document.getElementById('controls');
-  
   if (state.phase === 'exchange' && state.leader === myIndex) {
     container.innerHTML = `
       <button class="btn-primary" onclick="doExchange()">
@@ -434,29 +613,25 @@ function renderControls() {
   }
 }
 
-// ==================== Proposal Panel ====================
 function showProposalPanel() {
   const panel = document.getElementById('proposalPanel');
   panel.style.display = 'block';
   
   const grid = document.getElementById('proposalGrid');
   let html = '';
-  
   for (let val = 100; val <= 165; val += 5) {
     const isDisabled = val <= state.contract && state.leader !== -1;
     const isAvailable = !isDisabled;
     const classes = ['proposal-btn'];
     if (isAvailable) classes.push('available');
-    
     html += `
-      <button class="${classes.join(' ')}" 
-              ${isDisabled ? 'disabled' : ''} 
+      <button class="${classes.join(' ')}"
+              ${isDisabled ? 'disabled' : ''}
               onclick="submitProposalValue(${val})">
         ${val}
       </button>
     `;
   }
-  
   grid.innerHTML = html;
   updateProposalLogMiniFromState();
 }
@@ -478,7 +653,6 @@ function updateProposalLogMiniFromState() {
     container.innerHTML = '';
     return;
   }
-  
   container.innerHTML = state.proposalLog.map(log => {
     const name = state.players[log.player]?.name || 'بازیکن';
     const type = log.action === 'call' ? 'call' : 'pass';
@@ -487,121 +661,13 @@ function updateProposalLogMiniFromState() {
   }).join('');
 }
 
-// ==================== Drag & Drop ====================
-function setupDragEvents() {
-  const cards = document.querySelectorAll('#myHand .card:not(.disabled)');
-  
-  cards.forEach(card => {
-    // Touch events
-    card.addEventListener('touchstart', handleDragStart, { passive: false });
-    card.addEventListener('touchmove', handleDragMove, { passive: false });
-    card.addEventListener('touchend', handleDragEnd);
-    card.addEventListener('touchcancel', handleDragEnd);
-    
-    // Mouse events
-    card.addEventListener('mousedown', handleDragStart);
-  });
-  
-  document.addEventListener('mousemove', handleDragMove);
-  document.addEventListener('mouseup', handleDragEnd);
-}
-
-function handleDragStart(e) {
-  if (state.phase !== 'playing' || state.turn !== state.myIndex) return;
-  
-  const card = e.target.closest('.card');
-  if (!card || card.classList.contains('disabled')) return;
-  
-  e.preventDefault();
-  draggedIndex = parseInt(card.dataset.index);
-  if (isNaN(draggedIndex)) return;
-  
-  const rect = card.getBoundingClientRect();
-  const point = e.touches ? e.touches[0] : e;
-  
-  offsetX = point.clientX - rect.left - rect.width / 2;
-  offsetY = point.clientY - rect.top - rect.height / 2;
-  
-  // ساخت ghost بدون چرخش
-  draggedCard = card.cloneNode(true);
-  draggedCard.classList.add('card-ghost');
-  draggedCard.style.transform = 'scale(1.1)';
-  draggedCard.style.position = 'fixed';
-  draggedCard.style.zIndex = '9999';
-  draggedCard.style.pointerEvents = 'none';
-  draggedCard.style.transition = 'none';
-  draggedCard.style.margin = '0';
-  
-  document.body.appendChild(draggedCard);
-  
-  // مخفی کردن کارت اصلی
-  card.style.opacity = '0.3';
-  
-  updateGhostPosition(point);
-}
-
-function handleDragMove(e) {
-  if (!draggedCard) return;
-  
-  e.preventDefault();
-  const point = e.touches ? e.touches[0] : e;
-  updateGhostPosition(point);
-  
-  // بررسی آیا روی drop zone است
-  const dropZone = document.getElementById('dropZone');
-  const dropRect = dropZone.getBoundingClientRect();
-  
-  const isOver = point.clientX >= dropRect.left && 
-                 point.clientX <= dropRect.right && 
-                 point.clientY >= dropRect.top && 
-                 point.clientY <= dropRect.bottom;
-  
-  if (isOver) {
-    dropZone.classList.add('drag-over');
-  } else {
-    dropZone.classList.remove('drag-over');
-  }
-}
-
-function handleDragEnd(e) {
-  if (!draggedCard) return;
-  
-  const dropZone = document.getElementById('dropZone');
-  const wasOverDrop = dropZone.classList.contains('drag-over');
-  
-  // حذف ghost
-  draggedCard.remove();
-  draggedCard = null;
-  
-  dropZone.classList.remove('drag-over');
-  
-  // برگرداندن opacity کارت‌ها
-  const cards = document.querySelectorAll('#myHand .card');
-  cards.forEach(c => c.style.opacity = '1');
-  
-  // اگر روی drop zone رها شد، کارت را بازی کن
-  if (wasOverDrop && draggedIndex >= 0) {
-    playCard(draggedIndex);
-  }
-  
-  draggedIndex = -1;
-}
-
-function updateGhostPosition(point) {
-  if (!draggedCard) return;
-  
-  draggedCard.style.left = (point.clientX - offsetX) + 'px';
-  draggedCard.style.top = (point.clientY - offsetY) + 'px';
-}
-
-// ==================== Helpers ====================
-function createCardHtml(card, index, isSelected = false, sizeClass = '', extraClass = '') {
+function createCardHtml(card, sizeClass = '') {
   const color = ['♥', '♦'].includes(card.s) ? 'red' : 'black';
-  const classes = ['card', color, sizeClass, extraClass].filter(Boolean).join(' ');
-  const onclick = index >= 0 ? `onclick="clickCard(${index})"` : '';
+  const classes = ['card', color];
+  if (sizeClass) classes.push(sizeClass);
   
   return `
-    <div class="${classes}" data-index="${index}" ${onclick}>
+    <div class="${classes.join(' ')}">
       <div class="corner corner-top">
         <span class="rank">${card.v}</span>
         <span class="suit-icon">${card.s}</span>
@@ -616,8 +682,7 @@ function createCardHtml(card, index, isSelected = false, sizeClass = '', extraCl
 }
 
 function getRelativePosition(playerIndex) {
-  const diff = (playerIndex - myIndex + 4) % 4;
-  return diff;
+  return (playerIndex - myIndex + 4) % 4;
 }
 
 function showModal(id) {
@@ -634,14 +699,12 @@ function addLog(msg, type = 'info') {
   item.className = 'log-item ' + type;
   item.textContent = msg;
   
-  // حداکثر 3 لاگ
   while (container.children.length >= 3) {
     container.removeChild(container.firstChild);
   }
   
   container.appendChild(item);
   
-  // پاک کردن بعد از 5 ثانیه
   setTimeout(() => {
     if (item.parentNode === container) {
       item.remove();
@@ -682,7 +745,7 @@ function showRoundResult(data) {
   
   cards.innerHTML = data.playedCards.map(pc => {
     const cls = pc.isWinner ? 'winner' : '';
-    return `<div class="${cls}">${createCardHtml(pc.card, -1, false, 'small')}</div>`;
+    return `<div class="${cls}">${createCardHtml(pc.card, 'small')}</div>`;
   }).join('');
   
   points.innerHTML = `
@@ -718,9 +781,7 @@ function showMatchEnd(data) {
   showModal('endModal');
 }
 
-// ==================== Event Listeners ====================
 document.addEventListener('DOMContentLoaded', () => {
-  // Mode selection
   document.querySelectorAll('input[name="gameMode"]').forEach(radio => {
     radio.addEventListener('change', function() {
       const suitSelector = document.getElementById('suitSelector');
@@ -734,10 +795,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
   
-  // Prevent default touch behaviors
+  // جلوگیری از اسکرول هنگام درگ
   document.addEventListener('touchmove', (e) => {
     if (draggedCard) {
       e.preventDefault();
     }
   }, { passive: false });
+  
+  // رندر مجدد هنگام تغییر سایز
+  window.addEventListener('resize', () => {
+    if (state) {
+      renderMyHand();
+    }
+  });
 });
