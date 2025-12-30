@@ -1,12 +1,12 @@
-// ==================== Voice Chat با WebRTC ====================
+// public/js/voice.js - نسخه بهبود یافته
 
 class VoiceChat {
   constructor(socket, myIndex) {
     this.socket = socket;
     this.myIndex = myIndex;
     this.localStream = null;
-    this.peers = {}; // {playerIndex: RTCPeerConnection}
-    this.audioElements = {}; // {playerIndex: HTMLAudioElement}
+    this.peers = {};
+    this.audioElements = {};
     this.isMicMuted = false;
     this.isSpeakerMuted = false;
     this.isInitialized = false;
@@ -40,7 +40,6 @@ class VoiceChat {
     this.socket.on('voiceReady', ({ from }) => {
       console.log('Player', from, 'is ready for voice');
       if (this.isInitialized && from < this.myIndex) {
-        // فقط بازیکن با index کمتر offer می‌دهد
         this.createOffer(from);
       }
     });
@@ -58,8 +57,14 @@ class VoiceChat {
   }
   
   async initialize() {
+    // بررسی پشتیبانی مرورگر
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn('getUserMedia not supported');
+      this.updateStatus('پشتیبانی نمی‌شود', true);
+      return false;
+    }
+    
     try {
-      // درخواست دسترسی به میکروفون
       this.localStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -71,19 +76,27 @@ class VoiceChat {
       
       this.isInitialized = true;
       this.updateStatus('متصل ✓', false);
-      
-      // اطلاع به بقیه که آماده‌ایم
       this.socket.emit('voiceReady');
-      
       return true;
+      
     } catch (error) {
       console.error('Error accessing microphone:', error);
-      this.updateStatus('خطا در میکروفون', true);
+      
+      if (error.name === 'NotAllowedError') {
+        this.updateStatus('دسترسی رد شد', true);
+      } else if (error.name === 'NotFoundError') {
+        this.updateStatus('میکروفون یافت نشد', true);
+      } else {
+        this.updateStatus('خطا در میکروفون', true);
+      }
+      
       return false;
     }
   }
   
   async createOffer(targetIndex) {
+    if (!this.isInitialized) return;
+    
     if (this.peers[targetIndex]) {
       this.peers[targetIndex].close();
     }
@@ -105,6 +118,8 @@ class VoiceChat {
   }
   
   async handleOffer(fromIndex, offer) {
+    if (!this.isInitialized) return;
+    
     if (this.peers[fromIndex]) {
       this.peers[fromIndex].close();
     }
@@ -128,7 +143,7 @@ class VoiceChat {
   
   async handleAnswer(fromIndex, answer) {
     const pc = this.peers[fromIndex];
-    if (pc) {
+    if (pc && pc.signalingState !== 'stable') {
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(answer));
       } catch (error) {
@@ -151,14 +166,12 @@ class VoiceChat {
   createPeerConnection(targetIndex) {
     const pc = new RTCPeerConnection(this.config);
     
-    // اضافه کردن track‌های صوتی
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => {
         pc.addTrack(track, this.localStream);
       });
     }
     
-    // دریافت ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         this.socket.emit('voiceIceCandidate', {
@@ -168,7 +181,6 @@ class VoiceChat {
       }
     };
     
-    // دریافت stream از بازیکن دیگر
     pc.ontrack = (event) => {
       console.log('Received track from', targetIndex);
       this.setupAudioElement(targetIndex, event.streams[0]);
@@ -179,11 +191,19 @@ class VoiceChat {
       this.updateVoiceIndicator(targetIndex, pc.connectionState === 'connected');
     };
     
+    pc.oniceconnectionstatechange = () => {
+      console.log('ICE state with', targetIndex, ':', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'failed') {
+        // تلاش مجدد
+        console.log('ICE failed, attempting restart...');
+        this.reconnectTo(targetIndex);
+      }
+    };
+    
     return pc;
   }
   
   setupAudioElement(playerIndex, stream) {
-    // حذف المنت قبلی اگر وجود داشت
     if (this.audioElements[playerIndex]) {
       this.audioElements[playerIndex].remove();
     }
@@ -194,21 +214,21 @@ class VoiceChat {
     audio.srcObject = stream;
     audio.muted = this.isSpeakerMuted;
     
-    document.getElementById('audioContainer').appendChild(audio);
-    this.audioElements[playerIndex] = audio;
+    const container = document.getElementById('audioContainer');
+    if (container) {
+      container.appendChild(audio);
+    }
     
-    // نمایش voice indicator
+    this.audioElements[playerIndex] = audio;
     this.updateVoiceIndicator(playerIndex, true);
   }
   
   updateVoiceIndicator(playerIndex, isConnected) {
-    // پیدا کردن المنت بازیکن
     const positions = ['top', 'left', 'right'];
-    const myIndex = this.myIndex;
     const relativeIndices = [
-      (myIndex + 2) % 4,
-      (myIndex + 3) % 4,
-      (myIndex + 1) % 4
+      (this.myIndex + 2) % 4,
+      (this.myIndex + 3) % 4,
+      (this.myIndex + 1) % 4
     ];
     
     const posIndex = relativeIndices.indexOf(playerIndex);
@@ -233,8 +253,13 @@ class VoiceChat {
     });
     
     const btn = document.getElementById('btnMic');
-    btn.classList.toggle('muted', this.isMicMuted);
-    btn.querySelector('.status').textContent = this.isMicMuted ? 'خاموش' : 'روشن';
+    if (btn) {
+      btn.classList.toggle('muted', this.isMicMuted);
+      const status = btn.querySelector('.status');
+      if (status) {
+        status.textContent = this.isMicMuted ? 'خاموش' : 'روشن';
+      }
+    }
     
     return !this.isMicMuted;
   }
@@ -247,8 +272,13 @@ class VoiceChat {
     });
     
     const btn = document.getElementById('btnSpeaker');
-    btn.classList.toggle('muted', this.isSpeakerMuted);
-    btn.querySelector('.status').textContent = this.isSpeakerMuted ? 'خاموش' : 'روشن';
+    if (btn) {
+      btn.classList.toggle('muted', this.isSpeakerMuted);
+      const status = btn.querySelector('.status');
+      if (status) {
+        status.textContent = this.isSpeakerMuted ? 'خاموش' : 'روشن';
+      }
+    }
     
     return !this.isSpeakerMuted;
   }
@@ -270,11 +300,12 @@ class VoiceChat {
   async reconnectTo(playerIndex) {
     this.removePeer(playerIndex);
     
+    // کمی صبر قبل از اتصال مجدد
+    await new Promise(r => setTimeout(r, 500));
+    
     if (playerIndex < this.myIndex) {
-      // ما باید offer بدهیم
       await this.createOffer(playerIndex);
     }
-    // در غیر این صورت منتظر offer از طرف مقابل می‌مانیم
   }
   
   updateStatus(text, isError) {
@@ -286,12 +317,10 @@ class VoiceChat {
   }
   
   destroy() {
-    // قطع همه اتصالات
     Object.keys(this.peers).forEach(index => {
       this.removePeer(parseInt(index));
     });
     
-    // توقف stream محلی
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => track.stop());
       this.localStream = null;
@@ -301,13 +330,13 @@ class VoiceChat {
   }
 }
 
-// Global instance
 let voiceChat = null;
 
-function initVoiceChat(socket, myIndex) {
+async function initVoiceChat(socket, myIndex) {
   if (voiceChat) {
     voiceChat.destroy();
   }
+  
   voiceChat = new VoiceChat(socket, myIndex);
   return voiceChat.initialize();
 }
