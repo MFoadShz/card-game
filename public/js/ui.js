@@ -60,30 +60,43 @@ function render() {
     info += `<br>📦 دست‌های برده: ت۱: ${state.collectedCounts[0]} | ت۲: ${state.collectedCounts[1]}`;
   }
 
-  document.getElementById('info').innerHTML = info;
-  document.getElementById('controls').innerHTML = ctrl;
-  document.getElementById('propHistoryBox').style.display = showProp ? 'block' : 'none';
-  document.getElementById('roundScoresBox').style.display = showRound ? 'block' : 'none';
+  const infoEl = document.getElementById('info');
+  const controlsEl = document.getElementById('controls');
+  if (infoEl) infoEl.innerHTML = info;
+  if (controlsEl) controlsEl.innerHTML = ctrl;
+  const propHistoryBoxEl = document.getElementById('propHistoryBox');
+  if (propHistoryBoxEl) propHistoryBoxEl.style.display = showProp ? 'block' : 'none';
+  const roundScoresBoxEl = document.getElementById('roundScoresBox');
+  if (roundScoresBoxEl) roundScoresBoxEl.style.display = showRound ? 'block' : 'none';
 
   if (showProp && state.proposalLog) {
-    document.getElementById('propHistory').innerHTML = state.proposalLog.map(b =>
-      `<div class="prop-item ${b.action}">${playerNames[b.player]}: ${b.action === 'pass' ? '❌ پاس' : '📣 ' + b.value}</div>`
-    ).join('');
+    const propHistoryEl = document.getElementById('propHistory');
+    if (propHistoryEl) {
+      propHistoryEl.innerHTML = state.proposalLog.map(b =>
+        `<div class="prop-item ${b.action}">${playerNames[b.player]}: ${b.action === 'pass' ? '❌ پاس' : '📣 ' + b.value}</div>`
+      ).join('');
+    }
   }
 
   if (showRound && state.roundPoints) {
-    document.getElementById('rs0').textContent = state.roundPoints[0];
-    document.getElementById('rs1').textContent = state.roundPoints[1];
+    const rs0 = document.getElementById('rs0');
+    const rs1 = document.getElementById('rs1');
+    if (rs0) rs0.textContent = state.roundPoints[0];
+    if (rs1) rs1.textContent = state.roundPoints[1];
   }
 
   // رندر دست من - در حالت exchange هم کلیک فعال باشد
   const canDrag = state.phase === 'playing' && state.turn === myIndex;
   const canClick = state.phase === 'exchange' || state.phase === 'playing';
   
-  document.getElementById('myHand').innerHTML = state.hand.map((c, i) =>
-    createCardHtml(c, i, selected.includes(i), canClick, canDrag)
-  ).join('');
-  document.getElementById('handCount').textContent = state.hand.length;
+  const myHandEl = document.getElementById('myHand');
+  if (myHandEl) {
+    myHandEl.innerHTML = (state.hand || []).map((c, i) =>
+      createCardHtml(c, i, selected.includes(i), canClick, canDrag)
+    ).join('');
+  }
+  const handCountEl = document.getElementById('handCount');
+  if (handCountEl) handCountEl.textContent = (state.hand || []).length;
 
   // رندر کارت‌های بازی شده
   let ph = state.playedCards && state.playedCards.length 
