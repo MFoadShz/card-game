@@ -202,7 +202,78 @@ body {
   padding-bottom: var(--safe-bottom);
 }
 
-/* Proposal Overlay - لایه تاریک */
+/* ==================== Voice Controls ==================== */
+#voiceControls {
+  position: fixed;
+  top: calc(50px + var(--safe-top));
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 80;
+}
+
+.voice-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(5px);
+}
+
+.voice-btn .icon {
+  font-size: 16px;
+}
+
+.voice-btn .status {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.voice-btn.muted {
+  background: rgba(231, 76, 60, 0.6);
+}
+
+.voice-btn.muted .icon {
+  opacity: 0.5;
+}
+
+.voice-status {
+  font-size: 10px;
+  color: var(--green);
+  text-align: center;
+  max-width: 80px;
+}
+
+.voice-status.error {
+  color: var(--red);
+}
+
+/* Voice Indicator on players */
+.voice-indicator {
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.voice-indicator.speaking {
+  opacity: 1;
+  animation: voicePulse 0.5s infinite;
+}
+
+@keyframes voicePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* ==================== Proposal Overlay ==================== */
 .proposal-overlay {
   position: fixed;
   top: 0;
@@ -211,6 +282,47 @@ body {
   bottom: 0;
   background: rgba(0, 0, 0, 0.85);
   z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.waiting-message {
+  background: var(--bg-card);
+  padding: 20px 40px;
+  border-radius: 20px;
+  text-align: center;
+  font-size: 18px;
+  color: var(--gold);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.8; }
+}
+
+.waiting-message .player-name {
+  display: block;
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.waiting-message .dots {
+  display: inline-block;
+}
+
+.waiting-message .dots::after {
+  content: '';
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
 }
 
 /* Top Bar */
@@ -258,10 +370,10 @@ body {
   margin-top: 2px;
 }
 
-/* ==================== Game Log - وسط‌چین ==================== */
+/* ==================== Game Log ==================== */
 #gameLog {
   position: fixed;
-  top: 60px;
+  top: 55px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.7);
@@ -302,7 +414,6 @@ body {
   transition: opacity 0.3s;
 }
 
-/* حالت پیشنهاد - مخفی کردن حریفان */
 .game-proposing .opponent {
   opacity: 0.1;
 }
@@ -452,7 +563,6 @@ body {
   justify-content: center;
 }
 
-/* Drop Zone فعال وقتی نوبت بازیکن است */
 .my-turn #dropZone {
   border-color: rgba(255, 215, 0, 0.3);
 }
@@ -482,25 +592,25 @@ body {
   transition: all 0.3s ease;
 }
 
-.played-card.pos-0 { /* من - پایین */
+.played-card.pos-0 {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
 }
 
-.played-card.pos-1 { /* راست */
+.played-card.pos-1 {
   right: 0;
   top: 50%;
   transform: translateY(-50%);
 }
 
-.played-card.pos-2 { /* بالا */
+.played-card.pos-2 {
   top: 0;
   left: 50%;
   transform: translateX(-50%);
 }
 
-.played-card.pos-3 { /* چپ */
+.played-card.pos-3 {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
@@ -534,7 +644,7 @@ body {
   left: 0;
   right: 0;
   padding-bottom: calc(10px + var(--safe-bottom));
-  z-index: 55; /* بالاتر از overlay برای دیدن دست */
+  z-index: 55;
   transition: all 0.3s ease;
 }
 
@@ -566,7 +676,7 @@ body {
   transition: all 0.3s ease;
 }
 
-/* ==================== انیمیشن نوبت بازیکن ==================== */
+/* انیمیشن نوبت بازیکن */
 .my-turn #myHandArea {
   transform: translateY(-20px);
 }
@@ -588,7 +698,7 @@ body {
   50% { opacity: 0.5; }
 }
 
-/* ==================== Cards ==================== */
+/* ==================== Cards - اصلاح شده ==================== */
 .card {
   width: 52px;
   height: 76px;
@@ -598,22 +708,54 @@ body {
   flex-direction: column;
   justify-content: space-between;
   padding: 4px;
-  margin: 0 -10px;
   cursor: pointer;
   transition: transform 0.2s, margin-top 0.2s, box-shadow 0.2s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   position: relative;
-  touch-action: none; /* برای drag بهتر */
+  touch-action: none;
+  flex-shrink: 0;
 }
 
+/* اصلاح overlap کارت‌ها - کارت سمت چپ روی کارت سمت راست */
+#myHand {
+  direction: ltr; /* برای z-index صحیح */
+}
+
+#myHand .card {
+  margin-left: -15px;
+}
+
+#myHand .card:first-child {
+  margin-left: 0;
+}
+
+/* هر کارت z-index بالاتر از قبلی */
+#myHand .card:nth-child(1) { z-index: 1; }
+#myHand .card:nth-child(2) { z-index: 2; }
+#myHand .card:nth-child(3) { z-index: 3; }
+#myHand .card:nth-child(4) { z-index: 4; }
+#myHand .card:nth-child(5) { z-index: 5; }
+#myHand .card:nth-child(6) { z-index: 6; }
+#myHand .card:nth-child(7) { z-index: 7; }
+#myHand .card:nth-child(8) { z-index: 8; }
+#myHand .card:nth-child(9) { z-index: 9; }
+#myHand .card:nth-child(10) { z-index: 10; }
+#myHand .card:nth-child(11) { z-index: 11; }
+#myHand .card:nth-child(12) { z-index: 12; }
+#myHand .card:nth-child(13) { z-index: 13; }
+#myHand .card:nth-child(14) { z-index: 14; }
+#myHand .card:nth-child(15) { z-index: 15; }
+#myHand .card:nth-child(16) { z-index: 16; }
+
 .card:hover {
-  transform: translateY(-10px);
-  z-index: 10;
+  transform: translateY(-15px);
+  z-index: 100 !important;
 }
 
 .card.selected {
-  margin-top: -15px;
+  transform: translateY(-20px);
   box-shadow: 0 0 15px var(--gold);
+  z-index: 100 !important;
 }
 
 .card.disabled {
@@ -624,7 +766,7 @@ body {
 .card.dragging {
   opacity: 0.8;
   transform: scale(1.1) rotate(5deg);
-  z-index: 1000;
+  z-index: 1000 !important;
   pointer-events: none;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
@@ -722,7 +864,7 @@ body {
   color: white;
 }
 
-/* ==================== Proposal Panel - منوی پیشنهاد جدید ==================== */
+/* ==================== Proposal Panel ==================== */
 .proposal-panel {
   position: fixed;
   top: 50%;
@@ -735,7 +877,7 @@ body {
   max-width: 340px;
   z-index: 100;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-  max-height: 70vh;
+  max-height: 60vh;
   overflow-y: auto;
 }
 
@@ -775,7 +917,6 @@ body {
 .proposal-log-mini .log-item.call { color: var(--green); }
 .proposal-log-mini .log-item.pass { color: var(--red); }
 
-/* Grid اعداد پیشنهاد */
 .proposal-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1034,7 +1175,7 @@ body {
   }
   
   .proposal-panel {
-    max-height: 60vh;
+    max-height: 55vh;
   }
 }
 
@@ -1042,6 +1183,9 @@ body {
   .card {
     width: 56px;
     height: 82px;
-    margin: 0 -8px;
+  }
+  
+  #myHand .card {
+    margin-left: -12px;
   }
 }

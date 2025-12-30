@@ -42,7 +42,9 @@
   <!-- صفحه بازی -->
   <div id="game" style="display:none">
     <!-- لایه تاریک برای زمان پیشنهاد -->
-    <div id="proposalOverlay" class="proposal-overlay" style="display:none"></div>
+    <div id="proposalOverlay" class="proposal-overlay" style="display:none">
+      <div id="waitingMessage" class="waiting-message"></div>
+    </div>
     
     <!-- نوار امتیاز بالا -->
     <div id="topBar">
@@ -60,11 +62,25 @@
       </div>
     </div>
 
+    <!-- کنترل‌های Voice Chat -->
+    <div id="voiceControls">
+      <button id="btnMic" class="voice-btn" onclick="toggleMic()" title="میکروفن">
+        <span class="icon">🎤</span>
+        <span class="status">روشن</span>
+      </button>
+      <button id="btnSpeaker" class="voice-btn" onclick="toggleSpeaker()" title="صدا">
+        <span class="icon">🔊</span>
+        <span class="status">روشن</span>
+      </button>
+      <div id="voiceStatus" class="voice-status"></div>
+    </div>
+
     <!-- بازیکن بالا (روبرو) -->
     <div id="playerTop" class="opponent top">
       <div class="opponent-info">
         <span class="opponent-name"></span>
         <span class="card-count"></span>
+        <span class="voice-indicator">🎤</span>
       </div>
       <div class="opponent-cards"></div>
     </div>
@@ -74,6 +90,7 @@
       <div class="opponent-info">
         <span class="opponent-name"></span>
         <span class="card-count"></span>
+        <span class="voice-indicator">🎤</span>
       </div>
       <div class="opponent-cards"></div>
     </div>
@@ -83,6 +100,7 @@
       <div class="opponent-info">
         <span class="opponent-name"></span>
         <span class="card-count"></span>
+        <span class="voice-indicator">🎤</span>
       </div>
       <div class="opponent-cards"></div>
     </div>
@@ -193,7 +211,11 @@
     </div>
   </div>
 
+  <!-- Container برای صداهای voice chat -->
+  <div id="audioContainer" style="display:none"></div>
+
   <script src="/socket.io/socket.io.js"></script>
+  <script src="js/voice.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -39,6 +39,8 @@ function setupSocketHandlers(io) {
         if (room.phase !== 'wait') {
           io.to(socket.id).emit('gameState', room.getStateForPlayer(myIndex));
         }
+        // اطلاع به بقیه برای اتصال مجدد voice
+        socket.to(code).emit('playerRejoined', { index: myIndex });
       } else {
         if (!room.addPlayer(socket.id, name)) {
           socket.emit('error', 'اتاق پر است');
@@ -147,6 +149,46 @@ function setupSocketHandlers(io) {
       }
     });
 
+    // ==================== WebRTC Signaling ====================
+    socket.on('voiceOffer', ({ to, offer }) => {
+      if (!myRoom) return;
+      let room = rooms[myRoom];
+      if (room.players[to] && room.players[to].connected) {
+        io.to(room.players[to].id).emit('voiceOffer', {
+          from: myIndex,
+          offer
+        });
+      }
+    });
+
+    socket.on('voiceAnswer', ({ to, answer }) => {
+      if (!myRoom) return;
+      let room = rooms[myRoom];
+      if (room.players[to] && room.players[to].connected) {
+        io.to(room.players[to].id).emit('voiceAnswer', {
+          from: myIndex,
+          answer
+        });
+      }
+    });
+
+    socket.on('voiceIceCandidate', ({ to, candidate }) => {
+      if (!myRoom) return;
+      let room = rooms[myRoom];
+      if (room.players[to] && room.players[to].connected) {
+        io.to(room.players[to].id).emit('voiceIceCandidate', {
+          from: myIndex,
+          candidate
+        });
+      }
+    });
+
+    socket.on('voiceReady', () => {
+      if (!myRoom) return;
+      // اطلاع به بقیه که این بازیکن آماده voice chat است
+      socket.to(myRoom).emit('voiceReady', { from: myIndex });
+    });
+
     socket.on('disconnect', () => {
       if (myRoom && rooms[myRoom]) {
         let room = rooms[myRoom];
@@ -161,12 +203,10 @@ function setupSocketHandlers(io) {
       }
     });
 
-    // اصلاح: myRoom را به عنوان پارامتر پاس می‌دهیم
     function handleNextProposer(io, room, roomCode) {
       let active = room.getActiveProposers();
       
       if (active === 0 || (active === 1 && room.leader === -1)) {
-        // همه پاس کردند بدون پیشنهاد - ریستارت
         room.startMatch();
         io.to(roomCode).emit('proposalRestart', { reason: 'همه پاس کردند' });
       } else if (active === 1) {

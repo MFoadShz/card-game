@@ -15,11 +15,18 @@ socket.on('error', msg => {
   alert(msg);
 });
 
-socket.on('joined', data => {
+socket.on('joined', async data => {
   myIndex = data.index;
   document.getElementById('waitingRoom').style.display = 'block';
+  
   if (data.isRejoin) {
     addLog('اتصال مجدد برقرار شد', 'info');
+  }
+  
+  // شروع Voice Chat
+  const voiceInitialized = await initVoiceChat(socket, myIndex);
+  if (!voiceInitialized) {
+    console.warn('Voice chat not initialized');
   }
 });
 
@@ -166,7 +173,7 @@ function render() {
   
   // کلاس‌های حالت
   gameEl.classList.toggle('my-turn', isMyTurn && state.phase === 'playing');
-  gameEl.classList.toggle('game-proposing', isProposing);
+  gameEl.classList.toggle('game-proposing', isProposing && state.turn !== state.myIndex);
   
   // امتیازات
   document.getElementById('score0').textContent = state.totalScores[0];
@@ -208,18 +215,29 @@ function render() {
     dropHint.style.display = 'none';
   }
   
-  // مودال‌ها
+  // مودال‌ها و پیشنهاد
   if (state.phase === 'propose') {
+    const overlay = document.getElementById('proposalOverlay');
+    const waitingMsg = document.getElementById('waitingMessage');
+    
     if (state.turn === state.myIndex) {
       // نوبت من - نمایش منوی پیشنهاد
+      overlay.style.display = 'none';
       showProposalPanel();
     } else {
-      // نوبت دیگران - فقط overlay و log
+      // نوبت دیگران - نمایش پیام انتظار
       hideProposalPanel();
-      document.getElementById('proposalOverlay').style.display = 'block';
+      overlay.style.display = 'flex';
+      
+      const currentPlayerName = state.players[state.turn]?.name || 'بازیکن';
+      waitingMsg.innerHTML = `
+        <span class="player-name">${currentPlayerName}</span>
+        در حال انتخاب<span class="dots"></span>
+      `;
     }
   } else {
     hideProposalPanel();
+    document.getElementById('proposalOverlay').style.display = 'none';
   }
   
   if (state.phase === 'selectMode' && state.leader === state.myIndex) {
@@ -346,7 +364,6 @@ function renderControls() {
 
 // ==================== Proposal Panel ====================
 function showProposalPanel() {
-  document.getElementById('proposalOverlay').style.display = 'block';
   const panel = document.getElementById('proposalPanel');
   panel.style.display = 'block';
   
@@ -377,7 +394,6 @@ function showProposalPanel() {
 
 function hideProposalPanel() {
   document.getElementById('proposalPanel').style.display = 'none';
-  document.getElementById('proposalOverlay').style.display = 'none';
 }
 
 function updateProposalLogMini(data) {
