@@ -22,13 +22,12 @@ function broadcastState(io, room) {
 
 function startTurnTimer(io, room, roomCode) {
   room.startTurnTimer((playerIndex, result) => {
-    // Bot played for timed-out player
     io.to(roomCode).emit('botAction', {
       player: playerIndex,
       name: room.players[playerIndex].name,
       result
     });
-
+    
     if (result.action === 'pass') {
       io.to(roomCode).emit('proposalUpdate', {
         player: playerIndex,
@@ -66,7 +65,6 @@ function startTurnTimer(io, room, roomCode) {
         name: room.players[playerIndex].name,
         isBot: true
       });
-      
       if (room.playedCards.length === 4) {
         handleRoundEnd(io, room, roomCode);
       } else {
@@ -76,7 +74,6 @@ function startTurnTimer(io, room, roomCode) {
     }
   });
   
-  // Broadcast timer start
   io.to(roomCode).emit('timerStart', {
     player: room.turn,
     duration: 30
@@ -89,15 +86,29 @@ function handleRoundEnd(io, room, roomCode) {
     io.to(roomCode).emit('roundResult', result);
     
     if (result.isLastRound) {
+      // آخرین دور - پایان دست
       setTimeout(() => {
         let endResult = room.endMatch();
         io.to(roomCode).emit('matchEnded', endResult);
+        
         if (endResult.gameOver) {
           io.to(roomCode).emit('gameOver', endResult);
+        } else {
+          // بازی تمام نشده - ۱۰ ثانیه صبر و شروع دست جدید
+          io.to(roomCode).emit('nextMatchCountdown', { seconds: 10 });
+          
+          setTimeout(() => {
+            room.startNextMatch();
+            io.to(roomCode).emit('newMatchStarting');
+            broadcastState(io, room);
+            startTurnTimer(io, room, roomCode);
+          }, 10000);
         }
+        
         io.to(roomCode).emit('updatePlayerList', room.getPlayerList());
       }, 3000);
     } else {
+      // ادامه دست فعلی
       setTimeout(() => {
         broadcastState(io, room);
         startTurnTimer(io, room, roomCode);
@@ -141,53 +152,53 @@ function setupSocketHandlers(io) {
   io.on('connection', socket => {
     let myRoom = null;
     let myIndex = -1;
-
+    
     socket.on('createRoom', ({ code, name, password, scoreLimit }) => {
       if (!code || !name) {
         socket.emit('error', 'کد اتاق و نام الزامی است');
         return;
       }
-
       if (rooms[code]) {
         socket.emit('error', 'این کد اتاق قبلاً استفاده شده');
         return;
       }
-
+      
       const room = createRoom(code, password || '', name, parseInt(scoreLimit) || 500);
       if (!room.addPlayer(socket.id, name)) {
         socket.emit('error', 'خطا در ایجاد اتاق');
         return;
       }
-
+      
       myRoom = code;
       myIndex = 0;
       socket.join(code);
-      socket.emit('roomCreated', { 
-        code, 
-        index: myIndex, 
+      
+      socket.emit('roomCreated', {
+        code,
+        index: myIndex,
         isHost: true,
-        scoreLimit: room.scoreLimit 
+        scoreLimit: room.scoreLimit
       });
       io.to(code).emit('updatePlayerList', room.getPlayerList());
     });
-
+    
     socket.on('joinRoom', ({ code, name, password }) => {
       if (!code || !name) {
         socket.emit('error', 'کد اتاق و نام الزامی است');
         return;
       }
-
+      
       const room = getRoom(code);
       if (!room) {
         socket.emit('error', 'اتاق یافت نشد');
         return;
       }
-
+      
       if (room.password && room.password !== password) {
         socket.emit('error', 'رمز عبور اشتباه است');
         return;
       }
-
+      
       let existing = room.players.findIndex(p => p.name === name);
       if (existing !== -1) {
         if (room.players[existing].connected) {
@@ -198,12 +209,14 @@ function setupSocketHandlers(io) {
         myRoom = code;
         myIndex = existing;
         socket.join(code);
-        socket.emit('roomJoined', { 
-          index: myIndex, 
-          isRejoin: true, 
+        
+        socket.emit('roomJoined', {
+          index: myIndex,
+          isRejoin: true,
           isHost: myIndex === room.hostIndex,
           scoreLimit: room.scoreLimit
         });
+        
         if (room.phase !== 'wait') {
           io.to(socket.id).emit('gameState', room.getStateForPlayer(myIndex));
         }
@@ -216,16 +229,17 @@ function setupSocketHandlers(io) {
         myRoom = code;
         myIndex = room.players.length - 1;
         socket.join(code);
-        socket.emit('roomJoined', { 
-          index: myIndex, 
-          isRejoin: false, 
+        
+        socket.emit('roomJoined', {
+          index: myIndex,
+          isRejoin: false,
           isHost: false,
           scoreLimit: room.scoreLimit
         });
       }
       io.to(code).emit('updatePlayerList', room.getPlayerList());
     });
-
+    
     socket.on('playerReady', () => {
       if (!myRoom) return;
       let room = rooms[myRoom];
@@ -236,7 +250,7 @@ function setupSocketHandlers(io) {
       }
       io.to(myRoom).emit('updatePlayerList', room.getPlayerList());
     });
-
+    
     socket.on('submitProposal', val => {
       if (!myRoom) return;
       let room = rooms[myRoom];
@@ -250,7 +264,7 @@ function setupSocketHandlers(io) {
         handleNextProposer(io, room, myRoom);
       }
     });
-
+    
     socket.on('passProposal', () => {
       if (!myRoom) return;
       let room = rooms[myRoom];
@@ -263,7 +277,7 @@ function setupSocketHandlers(io) {
         handleNextProposer(io, room, myRoom);
       }
     });
-
+    
     socket.on('exchangeCards', cardIndices => {
       if (!myRoom) return;
       let room = rooms[myRoom];
@@ -272,7 +286,7 @@ function setupSocketHandlers(io) {
         startTurnTimer(io, room, myRoom);
       }
     });
-
+    
     socket.on('selectMode', data => {
       if (!myRoom) return;
       let room = rooms[myRoom];
@@ -287,7 +301,7 @@ function setupSocketHandlers(io) {
         startTurnTimer(io, room, myRoom);
       }
     });
-
+    
     socket.on('playCard', cardIndex => {
       if (!myRoom) return;
       let room = rooms[myRoom];
@@ -298,7 +312,6 @@ function setupSocketHandlers(io) {
           card: card,
           name: room.players[myIndex].name
         });
-        
         if (room.playedCards.length === 4) {
           handleRoundEnd(io, room, myRoom);
         } else {
@@ -309,7 +322,7 @@ function setupSocketHandlers(io) {
         socket.emit('error', 'باید کارت همخال بازی کنید');
       }
     });
-
+    
     socket.on('resetGame', () => {
       if (!myRoom) return;
       let room = rooms[myRoom];
@@ -321,8 +334,7 @@ function setupSocketHandlers(io) {
       io.to(myRoom).emit('gameReset');
       io.to(myRoom).emit('updatePlayerList', room.getPlayerList());
     });
-
-    // Voice chat signaling
+    
     socket.on('voiceSignal', ({ to, signal }) => {
       if (!myRoom) return;
       let room = rooms[myRoom];
@@ -333,12 +345,12 @@ function setupSocketHandlers(io) {
         });
       }
     });
-
+    
     socket.on('voiceReady', () => {
       if (!myRoom) return;
       socket.to(myRoom).emit('voiceReady', { from: myIndex });
     });
-
+    
     socket.on('disconnect', () => {
       if (myRoom && rooms[myRoom]) {
         let room = rooms[myRoom];

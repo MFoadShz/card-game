@@ -24,28 +24,19 @@ class Room {
     this.totalScores = [0, 0];
     this.proposalLog = [];
     this.roundPoints = { 0: 0, 1: 0 };
-    
-    // Game history
     this.gameHistory = [];
     this.matchHistory = [];
-    
-    // Timer system
     this.turnTimer = null;
     this.turnStartTime = null;
-    this.turnDuration = 30000; // 30 seconds
+    this.turnDuration = 30000;
     this.timerCallback = null;
-    
-    // Bot AI
     this.botAI = new BotAI();
   }
 
-  // === Timer Methods ===
-  
   startTurnTimer(callback) {
     this.clearTurnTimer();
     this.turnStartTime = Date.now();
     this.timerCallback = callback;
-    
     this.turnTimer = setTimeout(() => {
       this.handleTimeout();
     }, this.turnDuration);
@@ -66,10 +57,8 @@ class Room {
   }
 
   handleTimeout() {
-    // Bot plays for the timed-out player
     const playerIndex = this.turn;
     let result = null;
-
     switch (this.phase) {
       case 'propose':
         result = this.botPropose(playerIndex);
@@ -84,18 +73,14 @@ class Room {
         result = this.botPlayCard(playerIndex);
         break;
     }
-
     if (this.timerCallback) {
       this.timerCallback(playerIndex, result);
     }
   }
 
-  // === Bot Actions ===
-  
   botPropose(playerIndex) {
     const hand = this.hands[playerIndex];
     const decision = this.botAI.selectProposal(hand, this.contract, this.leader !== -1);
-    
     if (decision.action === 'pass') {
       this.passProposal(playerIndex);
       return { action: 'pass' };
@@ -129,12 +114,9 @@ class Room {
       playerIndex,
       this.leader
     );
-    
     const card = this.playCard(playerIndex, cardIndex);
     return { action: 'playCard', cardIndex, card };
   }
-
-  // === Original Methods (updated) ===
 
   addPlayer(id, name) {
     if (this.players.length >= 4) return false;
@@ -161,7 +143,6 @@ class Room {
 
   startMatch() {
     this.clearTurnTimer();
-    
     let deck = createDeck();
     this.phase = 'propose';
     this.hands = {};
@@ -176,7 +157,7 @@ class Room {
     this.turn = (this.opener + 1) % 4;
     this.proposalLog = [];
     this.roundPoints = { 0: 0, 1: 0 };
-
+    
     for (let i = 0; i < 4; i++) {
       this.hands[i] = [];
       for (let j = 0; j < 12; j++) {
@@ -237,9 +218,7 @@ class Room {
   exchangeCards(playerIndex, cardIndices) {
     if (this.phase !== 'exchange' || playerIndex !== this.leader) return false;
     if (cardIndices.length !== 4) return false;
-    
     this.clearTurnTimer();
-    
     cardIndices.sort((a, b) => b - a);
     let hand = this.hands[playerIndex];
     let exchanged = [];
@@ -259,9 +238,7 @@ class Room {
     if (this.phase !== 'selectMode' || playerIndex !== this.leader) return false;
     const validModes = ['hokm', 'nars', 'asNars', 'sars'];
     if (!validModes.includes(mode)) return false;
-    
     this.clearTurnTimer();
-    
     if (mode === 'sars') {
       this.masterSuit = null;
       this.gameMode = 'sars';
@@ -288,26 +265,21 @@ class Room {
       let hasSuit = hand.some(c => c.s === leadSuit);
       if (hasSuit && card.s !== leadSuit) return null;
     }
-    
     this.clearTurnTimer();
-    
     hand.splice(cardIndex, 1);
     this.playedCards.push({ p: playerIndex, c: card });
     this.turn = (this.turn + 1) % 4;
-    
     this.gameHistory.push({
       player: playerIndex,
       playerName: this.players[playerIndex].name,
       card: { ...card },
       timestamp: Date.now()
     });
-    
     return card;
   }
 
   resolveRound() {
     this.clearTurnTimer();
-    
     let winnerIndex = resolveRoundWinner(this.playedCards, this.gameMode, this.masterSuit);
     let w = this.playedCards[winnerIndex].p;
     let team = w % 2;
@@ -315,7 +287,7 @@ class Room {
     this.collectedCards[team].push(...roundCards);
     let points = calculateScore(roundCards);
     this.roundPoints[team] += points;
-
+    
     const result = {
       winner: w,
       winnerName: this.players[w].name,
@@ -330,13 +302,13 @@ class Room {
       })),
       isLastRound: this.hands[0].length === 0
     };
-
+    
     if (result.isLastRound) {
       let extraPoints = calculateScore(this.centerStack);
       this.roundPoints[team] += extraPoints;
       result.roundPoints = { ...this.roundPoints };
     }
-
+    
     this.playedCards = [];
     this.turn = w;
     return result;
@@ -344,19 +316,22 @@ class Room {
 
   endMatch() {
     this.clearTurnTimer();
-    
     let pts = [this.roundPoints[0], this.roundPoints[1]];
     let leaderTeam = this.leader % 2;
     let otherTeam = 1 - leaderTeam;
     let success = pts[leaderTeam] >= this.contract;
-
+    
+    // محاسبه امتیاز
     if (success) {
+      // حاکم برنده شد - امتیازش را می‌گیرد
       this.totalScores[leaderTeam] += pts[leaderTeam];
     } else {
+      // حاکم باخت - منفی به میزان قرارداد
       this.totalScores[leaderTeam] -= this.contract;
     }
+    // تیم مقابل همیشه امتیاز کارت‌هایش را می‌گیرد
     this.totalScores[otherTeam] += pts[otherTeam];
-
+    
     this.matchHistory.push({
       contract: this.contract,
       leader: this.leader,
@@ -368,19 +343,37 @@ class Room {
       totalScores: [...this.totalScores],
       gameHistory: [...this.gameHistory]
     });
-
+    
     this.gameHistory = [];
     this.opener = (this.opener + 1) % 4;
-
-    const gameOver = this.totalScores[0] >= this.scoreLimit || this.totalScores[1] >= this.scoreLimit;
     
+    // بررسی پایان بازی - هم مثبت هم منفی
+    const gameOver = 
+      this.totalScores[0] >= this.scoreLimit || 
+      this.totalScores[1] >= this.scoreLimit ||
+      this.totalScores[0] <= -this.scoreLimit ||
+      this.totalScores[1] <= -this.scoreLimit;
+    
+    // تعیین برنده
+    let winner = null;
     if (gameOver) {
+      // اگر کسی به مثبت رسید، برنده است
+      if (this.totalScores[0] >= this.scoreLimit) {
+        winner = 0;
+      } else if (this.totalScores[1] >= this.scoreLimit) {
+        winner = 1;
+      }
+      // اگر کسی به منفی رسید، بازنده است (تیم مقابل برنده)
+      else if (this.totalScores[0] <= -this.scoreLimit) {
+        winner = 1;
+      } else if (this.totalScores[1] <= -this.scoreLimit) {
+        winner = 0;
+      }
       this.phase = 'gameOver';
     } else {
-      this.phase = 'finished';
-      this.players.forEach(p => p.ready = false);
+      this.phase = 'matchEnd'; // فاز جدید برای نمایش نتیجه
     }
-
+    
     return {
       points: pts,
       totalScores: [...this.totalScores],
@@ -389,10 +382,17 @@ class Room {
       success,
       gameMode: this.gameMode,
       gameOver,
-      winner: gameOver ? (this.totalScores[0] >= this.scoreLimit ? 0 : 1) : null,
+      winner,
       matchHistory: this.matchHistory,
       scoreLimit: this.scoreLimit
     };
+  }
+
+  // شروع دست جدید بعد از matchEnd
+  startNextMatch() {
+    if (this.phase !== 'matchEnd') return false;
+    this.startMatch();
+    return true;
   }
 
   resetGame() {

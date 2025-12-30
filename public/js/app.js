@@ -24,6 +24,9 @@ let remainingTime = 30;
 let previousPhase = null;
 let isDealing = false;
 
+// === Countdown for next match ===
+let countdownInterval = null;
+
 // === Socket Connection ===
 socket.on('connect', () => console.log('Connected'));
 
@@ -61,8 +64,7 @@ socket.on('updatePlayerList', players => {
 });
 
 socket.on('gameState', data => {
-  // تشخیص شروع بازی جدید (انتقال از wait به propose)
-  const wasWaiting = !state || state.phase === 'wait' || state.phase === 'finished';
+  const wasWaiting = !state || state.phase === 'wait' || state.phase === 'finished' || state.phase === 'matchEnd';
   const isNewGame = wasWaiting && data.phase === 'propose';
   
   state = data;
@@ -70,7 +72,6 @@ socket.on('gameState', data => {
   document.getElementById('game').style.display = 'flex';
   
   if (isNewGame && !isDealing) {
-    // شروع انیمیشن توزیع کارت‌ها
     startDealingAnimation();
   } else if (!isDealing) {
     render();
@@ -131,12 +132,26 @@ socket.on('matchEnded', data => {
   }
 });
 
+socket.on('nextMatchCountdown', data => {
+  startNextMatchCountdown(data.seconds);
+});
+
+socket.on('newMatchStarting', () => {
+  hideModal('endModal');
+  stopCountdown();
+  // انیمیشن توزیع کارت برای دست جدید
+  isDealing = false; // ریست برای شروع انیمیشن جدید
+});
+
 socket.on('gameOver', data => {
+  stopCountdown();
   showGameOver(data);
 });
 
 socket.on('gameReset', () => {
   hideModal('gameOverModal');
+  hideModal('endModal');
+  stopCountdown();
   document.getElementById('lobby').style.display = 'flex';
   document.getElementById('game').style.display = 'none';
   previousPhase = null;
@@ -153,17 +168,49 @@ socket.on('playerDisconnected', data => {
   addLog(`❌ ${data.name} قطع شد`, 'info');
 });
 
+// === Countdown Functions ===
+function startNextMatchCountdown(seconds) {
+  let remaining = seconds;
+  updateCountdownDisplay(remaining);
+  
+  countdownInterval = setInterval(() => {
+    remaining--;
+    updateCountdownDisplay(remaining);
+    if (remaining <= 0) {
+      stopCountdown();
+    }
+  }, 1000);
+}
+
+function stopCountdown() {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+  const el = document.getElementById('nextMatchCountdown');
+  if (el) el.remove();
+}
+
+function updateCountdownDisplay(seconds) {
+  let el = document.getElementById('nextMatchCountdown');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'nextMatchCountdown';
+    el.className = 'countdown-display';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `
+    <div class="countdown-text">دست بعدی در</div>
+    <div class="countdown-number">${seconds}</div>
+    <div class="countdown-text">ثانیه</div>
+  `;
+}
+
 // === Dealing Animation ===
 function startDealingAnimation() {
   isDealing = true;
-  
-  // ابتدا صفحه بازی را نمایش می‌دهیم بدون کارت
   renderGameBoard();
-  
-  // نمایش پیام توزیع
   showDealingMessage();
-  
-  // شروع انیمیشن با تاخیر
   setTimeout(() => {
     renderCardsWithAnimation();
   }, 500);
@@ -183,7 +230,6 @@ function hideDealingMessage() {
 }
 
 function renderGameBoard() {
-  // رندر بخش‌های ثابت بدون کارت
   const gameEl = document.getElementById('game');
   gameEl.classList.remove('my-turn');
   gameEl.classList.add('game-proposing');
@@ -198,19 +244,15 @@ function renderGameBoard() {
   document.getElementById('contractDisplay').textContent = '';
   document.getElementById('trumpDisplay').textContent = '';
   
-  // رندر اطلاعات حریفان بدون کارت
   renderOpponentsInfo();
   
-  // خالی کردن دست من
   document.getElementById('myHand').innerHTML = '';
   document.getElementById('playedCards').innerHTML = '';
   
-  // نمایش نام من
   const myName = playerNames[myIndex] || 'شما';
   document.getElementById('myName').textContent = myName;
   document.getElementById('turnIndicator').textContent = '';
   
-  // مخفی کردن پنل پیشنهاد در حین انیمیشن
   hideProposalPanel();
   const overlay = document.getElementById('proposalOverlay');
   if (overlay) overlay.style.display = 'none';
@@ -241,7 +283,6 @@ function renderCardsWithAnimation() {
   const hand = state.hand || [];
   const container = document.getElementById('myHand');
   
-  // محاسبه سایز کارت
   const viewportWidth = window.innerWidth;
   let cardWidth;
   if (viewportWidth < 350) cardWidth = 48;
@@ -256,7 +297,6 @@ function renderCardsWithAnimation() {
   const startAngle = -totalAngle / 2;
   const fanRadius = Math.max(280, 400 - cardCount * 8);
   
-  // ایجاد کارت‌های دست من با انیمیشن
   hand.forEach((card, i) => {
     setTimeout(() => {
       const angle = startAngle + (i * angleStep);
@@ -287,14 +327,9 @@ function renderCardsWithAnimation() {
       `;
       
       container.appendChild(cardEl);
-      
-      // صدای کارت (اختیاری)
-      // playCardSound();
-      
-    }, i * 80); // تاخیر 80 میلی‌ثانیه بین هر کارت
+    }, i * 80);
   });
   
-  // انیمیشن کارت‌های حریفان
   const positions = ['Top', 'Left', 'Right'];
   const relativeIndices = [
     (myIndex + 2) % 4,
@@ -315,18 +350,15 @@ function renderCardsWithAnimation() {
         cardBack.className = 'card-back deal-anim';
         cardBack.style.animationDelay = '0ms';
         cardsContainer.appendChild(cardBack);
-      }, (pi * 300) + (j * 50)); // تاخیر برای هر بازیکن و هر کارت
+      }, (pi * 300) + (j * 50));
     }
   });
   
-  // پایان انیمیشن و شروع بازی
   const totalDelay = Math.max(hand.length * 80, 3 * 300 + 6 * 50) + 500;
   
   setTimeout(() => {
     hideDealingMessage();
     isDealing = false;
-    
-    // حذف کلاس انیمیشن و رندر کامل
     render();
   }, totalDelay);
 }
@@ -447,8 +479,6 @@ function confirmMode() {
 
 function playAgain() {
   hideModal('endModal');
-  document.getElementById('readyBtn').disabled = false;
-  document.getElementById('readyBtn').textContent = '✅ آماده‌ام!';
 }
 
 function resetGame() {
@@ -998,16 +1028,25 @@ function showMatchEnd(data) {
   const won = data.success ? data.leaderTeam === myTeam : data.leaderTeam !== myTeam;
 
   modal.querySelector('.modal-content').className = 'modal-content end-modal ' + (won ? 'win' : 'lose');
-  title.textContent = won ? '🎉 برنده شدید!' : '😔 باختید';
+  title.textContent = won ? '🎉 این دست را بردید!' : '😔 این دست را باختید';
 
   const resultText = data.success ? 'قرارداد موفق ✅' : 'قرارداد ناموفق ❌';
+  const scoreChange = data.success 
+    ? `+${data.points[data.leaderTeam]}` 
+    : `-${data.contract}`;
+  
   details.innerHTML = `
-    ${resultText}<br>
-    قرارداد: ${data.contract}<br>
-    امتیاز تیم ۱: ${data.points[0]} | تیم ۲: ${data.points[1]}<br>
+    <div style="font-size:16px;margin-bottom:10px">${resultText}</div>
+    <div>قرارداد: ${data.contract}</div>
+    <div>امتیاز تیم حاکم: ${scoreChange}</div>
+    <div>امتیاز تیم مقابل: +${data.points[1 - data.leaderTeam]}</div>
     <hr style="margin:10px 0;border-color:#444">
-    مجموع تیم ۱: ${data.totalScores[0]}<br>
-    مجموع تیم ۲: ${data.totalScores[1]}
+    <div style="font-size:18px;font-weight:bold">
+      مجموع: تیم ۱: ${data.totalScores[0]} | تیم ۲: ${data.totalScores[1]}
+    </div>
+    <div style="margin-top:15px;color:var(--gold)">
+      ⏳ دست بعدی به زودی شروع می‌شود...
+    </div>
   `;
 
   showModal('endModal');
@@ -1025,6 +1064,15 @@ function showGameOver(data) {
   modal.querySelector('.modal-content').className = 'modal-content game-over-modal ' + (won ? 'win' : 'lose');
   title.textContent = won ? '🏆 تبریک! شما برنده شدید!' : '😔 متأسفانه باختید';
 
+  // تشخیص نوع برد/باخت
+  let winReason = '';
+  if (data.totalScores[data.winner] >= data.scoreLimit) {
+    winReason = `تیم ${data.winner + 1} به ${data.scoreLimit} امتیاز رسید`;
+  } else {
+    const loser = 1 - data.winner;
+    winReason = `تیم ${loser + 1} به ${-data.scoreLimit} امتیاز رسید`;
+  }
+
   details.innerHTML = `
     <div class="final-scores">
       <div class="team-score ${data.winner === 0 ? 'winner' : ''}">
@@ -1037,28 +1085,26 @@ function showGameOver(data) {
         <span class="score">${data.totalScores[1]}</span>
       </div>
     </div>
-    <p>سقف امتیاز: ${data.scoreLimit}</p>
+    <p style="text-align:center;color:var(--gold)">${winReason}</p>
+    <p>سقف امتیاز: ±${data.scoreLimit}</p>
   `;
 
   let historyHtml = '<h4>تاریخچه دست‌ها:</h4>';
   data.matchHistory.forEach((match, idx) => {
     const modeNames = { hokm: 'حکم', nars: 'نرس', asNars: 'آس‌نرس', sars: 'سرس' };
+    const scoreChange = match.success 
+      ? `+${match.points[match.leader % 2]}` 
+      : `-${match.contract}`;
     historyHtml += `
       <div class="match-item ${match.success ? 'success' : 'failed'}">
         <div class="match-header">
           <span>دست ${idx + 1}</span>
           <span>${match.leaderName} - ${modeNames[match.gameMode]} ${match.masterSuit || ''}</span>
-          <span>قرارداد: ${match.contract}</span>
+          <span>${scoreChange}</span>
         </div>
         <div class="match-scores">
           تیم ۱: ${match.points[0]} | تیم ۲: ${match.points[1]}
           ${match.success ? '✅' : '❌'}
-        </div>
-        <div class="match-cards">
-          ${match.gameHistory.slice(0, 20).map(h =>
-            `<span class="history-card ${['♥','♦'].includes(h.card.s) ? 'red' : 'black'}">${h.card.v}${h.card.s}</span>`
-          ).join('')}
-          ${match.gameHistory.length > 20 ? '...' : ''}
         </div>
       </div>
     `;
