@@ -104,6 +104,8 @@ socket.on('reconnected', async (data) => {
     document.getElementById('game').style.display = 'flex';
     
     addLog('🔄 اتصال مجدد برقرار شد', 'info');
+    // Remove the reconnect prompt if it was showing
+    hideReconnectPrompt();
     
     try {
         await initVoiceChat(socket, myIndex);
@@ -230,6 +232,8 @@ socket.on('roomJoined', async data => {
     
     if (data.isReconnect) {
         addLog('🔄 اتصال مجدد برقرار شد', 'info');
+      // If we came here via auto-reconnect, clear the prompt
+      hideReconnectPrompt();
     }
     
     showWaitingRoom();
@@ -438,6 +442,8 @@ socket.on('roomJoined', async data => {
   showWaitingRoom();
   if (data.isRejoin) {
     addLog('اتصال مجدد برقرار شد', 'info');
+    // remove reconnect prompt if present
+    hideReconnectPrompt();
   }
   if (typeof initVoiceChat === 'function') {
     await initVoiceChat(socket, myIndex);
