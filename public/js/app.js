@@ -958,6 +958,20 @@ function renderMyHand() {
             ? '🎯 نوبت شماست!' : '';
     }
 
+    // ✅ امتیاز تیم‌ها - مینیمال
+    const myTeam = myIndex % 2;
+    const myScore = state.totalScores[myTeam];
+    const oppScore = state.totalScores[1 - myTeam];
+    
+    let scoreEl = document.getElementById('miniTeamScore');
+    if (!scoreEl) {
+        scoreEl = document.createElement('div');
+        scoreEl.id = 'miniTeamScore';
+        scoreEl.style.cssText = 'position:absolute;top:2px;right:8px;font-size:10px;opacity:0.8;';
+        document.getElementById('myHandArea').appendChild(scoreEl);
+    }
+    scoreEl.innerHTML = `<span style="color:#4a9eff">${myScore}</span><span style="color:#666">:</span><span style="color:#ff6b6b">${oppScore}</span>`;
+
     if (cardCount === 0) {
         container.innerHTML = '';
         return;

@@ -733,28 +733,32 @@ body {
 
 /* ==================== Table Center & Drop Zone ==================== */
 #tableCenter {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 200px;
-  height: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;                /* ⬅️ عرض کل ناحیه */
+    max-width: 400px;          /* ⬅️ حداکثر عرض */
+    height: 50vh;              /* ⬅️ ارتفاع - تغییر دهید */
+    min-height: 200px;         /* ⬅️ حداقل ارتفاع */
+    max-height: 350px;         /* ⬅️ حداکثر ارتفاع */
 }
 
 #dropZone {
-  position: relative;
-  width: 180px;
-  height: 180px;
-  border: 2px dashed transparent;
-  border-radius: 20px;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;                /* ⬅️ عرض ناحیه رها کردن */
+    height: 85%;               /* ⬅️ ارتفاع ناحیه رها کردن */
+    min-height: 180px;         /* ⬅️ حداقل ارتفاع */
+    max-height: 300px;         /* ⬅️ حداکثر ارتفاع */
+    border: 3px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
 }
 
 .my-turn #dropZone {
@@ -1846,4 +1850,29 @@ body {
     top: 5px;
     right: 5px;
     font-size: 0.8em;
+}
+
+@media (max-width: 500px) {
+    #tableCenter {
+        width: 95%;
+        height: 45vh;
+        min-height: 180px;
+    }
+    
+    #dropZone {
+        width: 92%;
+        height: 80%;
+        min-height: 160px;
+    }
+}
+
+@media (max-height: 700px) {
+    #tableCenter {
+        height: 40vh;
+        min-height: 150px;
+    }
+    
+    #dropZone {
+        height: 75%;
+    }
 }
