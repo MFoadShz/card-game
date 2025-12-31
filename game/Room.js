@@ -28,7 +28,7 @@ class Room {
         this.gameHistory = [];
         this.botAI = new BotAI();
         this.turnTimer = null;
-        this.turnDuration = 30000; // 30 ثانیه
+        this.turnDuration = 5000; // 5 ثانیه
         this.turnStartTime = null;
         this.timerCallback = null;
         this.lastActivity = Date.now();
