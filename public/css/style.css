@@ -737,9 +737,9 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 90%;                /* ⬅️ عرض کل ناحیه */
+    width: 85%;                /* ⬅️ عرض کل ناحیه */
     max-width: 400px;          /* ⬅️ حداکثر عرض */
-    height: 50vh;              /* ⬅️ ارتفاع - تغییر دهید */
+    height: 60vh;              /* ⬅️ ارتفاع - تغییر دهید */
     min-height: 200px;         /* ⬅️ حداقل ارتفاع */
     max-height: 350px;         /* ⬅️ حداکثر ارتفاع */
 }
@@ -1854,13 +1854,13 @@ body {
 
 @media (max-width: 500px) {
     #tableCenter {
-        width: 95%;
-        height: 45vh;
+        width: 85%;
+        height: 60vh;
         min-height: 180px;
     }
     
     #dropZone {
-        width: 92%;
+        width: 88%;
         height: 80%;
         min-height: 160px;
     }
@@ -1868,7 +1868,7 @@ body {
 
 @media (max-height: 700px) {
     #tableCenter {
-        height: 40vh;
+        height: 60vh;
         min-height: 150px;
     }
     
