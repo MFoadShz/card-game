@@ -1,13 +1,399 @@
-const socket = io();
+// public/js/app.js - بخش اول (اضافه کردن در ابتدای فایل)
 
-// === Global Variables ===
-let myIndex = -1;
+const socket = io({
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 20000
+});
+
+// --- Session Management ---
+const DEVICE_ID_KEY = 'shelem_device_id';
+const SESSION_KEY = 'shelem_session';
+
+function getDeviceId() {
+    let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+    if (!deviceId) {
+        deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + 
+                   '_' + Date.now().toString(36);
+        localStorage.setItem(DEVICE_ID_KEY, deviceId);
+    }
+    return deviceId;
+}
+
+function saveSession(data) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+        ...data,
+        savedAt: Date.now()
+    }));
+}
+
+function getSession() {
+    try {
+        const data = localStorage.getItem(SESSION_KEY);
+        if (data) {
+            const session = JSON.parse(data);
+            // سشن‌های قدیمی‌تر از 24 ساعت را پاک کن
+            if (Date.now() - session.savedAt > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem(SESSION_KEY);
+                return null;
+            }
+            return session;
+        }
+    } catch (e) {}
+    return null;
+}
+
+function clearSession() {
+    localStorage.removeItem(SESSION_KEY);
+}
+
+// --- State ---
 let state = null;
+let myIndex = -1;
+let myName = '';
+let myRoom = '';
+let scoreLimit = 500;
 let selected = [];
 let selectedSuit = null;
 let playerNames = [];
-let isHost = false;
-let scoreLimit = 500;
+let isReconnecting = false;
+let timerInterval = null;
+let countdownInterval = null;
+
+// --- Connection Handling ---
+socket.on('connect', () => {
+    console.log('Connected to server');
+    
+    const deviceId = getDeviceId();
+    const session = getSession();
+    
+    // احراز هویت
+    socket.emit('authenticate', {
+        deviceId,
+        playerName: session?.playerName || ''
+    });
+});
+
+socket.on('authenticated', (data) => {
+    console.log('Authenticated:', data);
+    
+    if (data.hasActiveGame) {
+        // بازی فعال دارد - پیشنهاد اتصال مجدد
+        showReconnectPrompt(data.roomCode, data.playerName);
+    } else if (data.playerName) {
+        // نام ذخیره شده را پر کن
+        document.getElementById('createName').value = data.playerName;
+        document.getElementById('joinName').value = data.playerName;
+    }
+});
+
+socket.on('reconnected', async (data) => {
+    console.log('Reconnected to game:', data);
+    isReconnecting = false;
+    
+    myRoom = data.roomCode;
+    myIndex = data.index;
+    myName = data.playerName;
+    scoreLimit = data.scoreLimit;
+    
+    saveSession({ roomCode: myRoom, playerName: myName, index: myIndex });
+    
+    document.getElementById('lobby').style.display = 'none';
+    document.getElementById('game').style.display = 'flex';
+    
+    addLog('🔄 اتصال مجدد برقرار شد', 'info');
+    
+    try {
+        await initVoiceChat(socket, myIndex);
+    } catch (e) {
+        console.error('Voice init failed:', e);
+    }
+});
+
+socket.on('reconnectFailed', (data) => {
+    console.log('Reconnect failed:', data.reason);
+    clearSession();
+    hideReconnectPrompt();
+    alert(data.reason);
+});
+
+socket.on('disconnect', (reason) => {
+    console.log('Disconnected:', reason);
+    addLog('⚠️ اتصال قطع شد...', 'info');
+    
+    if (reason !== 'io client disconnect') {
+        showConnectionLost();
+    }
+});
+
+socket.on('connect_error', (error) => {
+    console.error('Connection error:', error);
+});
+
+socket.on('error', msg => {
+    alert(msg);
+});
+
+// --- Reconnect UI ---
+function showReconnectPrompt(roomCode, playerName) {
+    const existing = document.getElementById('reconnectPrompt');
+    if (existing) existing.remove();
+    
+    const prompt = document.createElement('div');
+    prompt.id = 'reconnectPrompt';
+    prompt.className = 'reconnect-prompt';
+    prompt.innerHTML = `
+        <div class="reconnect-content">
+            <h3>🎮 بازی فعال</h3>
+            <p>شما در اتاق <strong>${roomCode}</strong> بازی داشتید</p>
+            <p>نام: <strong>${playerName}</strong></p>
+            <button onclick="doAutoReconnect()">🔄 ادامه بازی</button>
+            <button onclick="hideReconnectPrompt()" class="secondary">❌ بازی جدید</button>
+        </div>
+    `;
+    document.body.appendChild(prompt);
+}
+
+function hideReconnectPrompt() {
+    const prompt = document.getElementById('reconnectPrompt');
+    if (prompt) prompt.remove();
+    clearSession();
+}
+
+function doAutoReconnect() {
+    const deviceId = getDeviceId();
+    socket.emit('autoReconnect', { deviceId });
+    
+    const prompt = document.getElementById('reconnectPrompt');
+    if (prompt) {
+        prompt.querySelector('.reconnect-content').innerHTML = `
+            <div class="loading">در حال اتصال...</div>
+        `;
+    }
+}
+
+function showConnectionLost() {
+    const existing = document.getElementById('connectionLost');
+    if (existing) return;
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'connectionLost';
+    overlay.className = 'connection-lost';
+    overlay.innerHTML = `
+        <div class="connection-content">
+            <div class="spinner"></div>
+            <p>در حال اتصال مجدد...</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    // وقتی وصل شد، حذف کن
+    socket.once('connect', () => {
+        overlay.remove();
+    });
+}
+
+// --- Keep Alive ---
+setInterval(() => {
+    if (socket.connected) {
+        socket.emit('ping');
+    }
+}, 25000);
+
+// --- Room Events ---
+socket.on('roomCreated', async data => {
+    myRoom = data.code;
+    myIndex = data.index;
+    scoreLimit = data.scoreLimit;
+    myName = document.getElementById('createName').value.trim();
+    
+    saveSession({ roomCode: myRoom, playerName: myName, index: myIndex });
+    
+    showWaitingRoom();
+    
+    try {
+        await initVoiceChat(socket, myIndex);
+    } catch (e) {
+        console.error('Voice init error:', e);
+    }
+});
+
+socket.on('roomJoined', async data => {
+    myRoom = data.code;
+    myIndex = data.index;
+    scoreLimit = data.scoreLimit;
+    myName = document.getElementById('joinName').value.trim();
+    
+    saveSession({ roomCode: myRoom, playerName: myName, index: myIndex });
+    
+    if (data.isReconnect) {
+        addLog('🔄 اتصال مجدد برقرار شد', 'info');
+    }
+    
+    showWaitingRoom();
+    
+    try {
+        await initVoiceChat(socket, myIndex);
+    } catch (e) {
+        console.error('Voice init error:', e);
+    }
+});
+
+socket.on('updatePlayerList', players => {
+    playerNames = players.map(p => p.name);
+    renderPlayerList(players);
+});
+
+socket.on('gameState', data => {
+    state = data;
+    myIndex = data.myIndex;
+    
+    if (document.getElementById('lobby').style.display !== 'none') {
+        document.getElementById('lobby').style.display = 'none';
+        document.getElementById('game').style.display = 'flex';
+        startDealingAnimation();
+    } else {
+        render();
+    }
+});
+
+socket.on('playerDisconnected', data => {
+    addLog(`⚠️ ${data.name} قطع شد - در انتظار اتصال مجدد...`, 'info');
+});
+
+socket.on('playerRejoined', data => {
+    addLog(`✅ ${data.name} برگشت`, 'info');
+});
+
+socket.on('playerLeft', data => {
+    addLog(`❌ ${data.name} بازی را ترک کرد`, 'info');
+});
+
+// بقیه event handlers همان‌طور که بود...
+socket.on('proposalUpdate', data => {
+    const text = data.action === 'pass'
+        ? `❌ ${data.name} پاس کرد`
+        : `📢 ${data.name}: ${data.value}`;
+    const type = data.action === 'pass' ? 'pass' : 'call';
+    addLog(text, type);
+    updateProposalLogMini(data);
+});
+
+socket.on('leaderSelected', data => {
+    hideProposalPanel();
+    addLog(`👑 ${data.name} حاکم شد - قرارداد: ${data.contract}`, 'info');
+});
+
+socket.on('modeSelected', data => {
+    hideModal('modeModal');
+    const modeNames = { hokm: 'حکم', nars: 'نَرس', asNars: 'آس‌نَرس', sars: 'سَرس' };
+    const modeName = modeNames[data.mode] || data.mode;
+    const suitText = data.suit ? ` - ${data.suit}` : '';
+    addLog(`🎯 ${data.name}: ${modeName}${suitText}`, 'info');
+});
+
+socket.on('cardAction', data => {
+    render();
+});
+
+socket.on('timerStart', data => {
+    startTimerUI(data.duration);
+});
+
+socket.on('botAction', data => {
+    const actionText = '🤖';
+    if (data.type === 'play') {
+        addLog(`${actionText} ${data.name} کارت بازی کرد (خودکار)`, 'info');
+    } else if (data.type === 'proposal') {
+        if (data.result.action === 'pass') {
+            addLog(`${actionText} ${data.name} پاس کرد (خودکار)`, 'pass');
+        } else {
+            addLog(`${actionText} ${data.name}: ${data.result.value} (خودکار)`, 'call');
+        }
+    }
+});
+
+socket.on('roundResult', data => {
+    showRoundResult(data);
+});
+
+socket.on('matchEnded', data => {
+    stopTimerUI();
+    showMatchEnd(data);
+});
+
+socket.on('nextMatchCountdown', data => {
+    startNextMatchCountdown(data.seconds);
+});
+
+socket.on('newMatchStarting', () => {
+    hideModal('endModal');
+    stopCountdown();
+});
+
+socket.on('gameOver', data => {
+    stopTimerUI();
+    showGameOver(data);
+});
+
+socket.on('gameReset', () => {
+    hideModal('gameOverModal');
+    clearSession();
+    
+    document.getElementById('lobby').style.display = 'flex';
+    document.getElementById('game').style.display = 'none';
+    backToWelcome();
+});
+
+socket.on('proposalRestart', data => {
+    hideProposalPanel();
+    addLog('⚠️ ' + data.reason, 'info');
+});
+
+// --- Room Functions ---
+function createRoom() {
+    const name = document.getElementById('createName').value.trim();
+    const code = document.getElementById('createCode').value.trim();
+    const password = document.getElementById('createPassword').value;
+    const limit = document.getElementById('createScoreLimit').value;
+
+    if (!name || !code) {
+        alert('نام و کد اتاق الزامی است');
+        return;
+    }
+
+    socket.emit('createRoom', { 
+        code, 
+        name, 
+        password, 
+        scoreLimit: limit 
+    });
+}
+
+function joinRoom() {
+    const name = document.getElementById('joinName').value.trim();
+    const code = document.getElementById('joinCode').value.trim();
+    const password = document.getElementById('joinPassword').value;
+
+    if (!name || !code) {
+        alert('نام و کد اتاق الزامی است');
+        return;
+    }
+
+    socket.emit('joinRoom', { code, name, password });
+}
+
+function leaveRoom() {
+    if (confirm('آیا می‌خواهید بازی را ترک کنید؟')) {
+        socket.emit('leaveRoom');
+        clearSession();
+        location.reload();
+    }
+}
+
+// بقیه توابع مثل قبل ادامه دارد...
 
 // === Drag variables ===
 let draggedCard = null;
@@ -17,7 +403,7 @@ let touchStartTime = 0;
 let isTouchDevice = false;
 
 // === Timer Variables ===
-let timerInterval = null;
+
 let remainingTime = 30;
 
 // === Dealing Animation Variables ===
@@ -25,7 +411,7 @@ let previousPhase = null;
 let isDealing = false;
 
 // === Countdown for next match ===
-let countdownInterval = null;
+
 
 // === Socket Connection ===
 socket.on('connect', () => console.log('Connected'));

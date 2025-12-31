@@ -1725,3 +1725,125 @@ body {
   font-weight: bold;
   margin: 10px 0;
 }
+
+
+/* اضافه به style.css */
+
+.reconnect-prompt {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.reconnect-content {
+    background: linear-gradient(135deg, #1a2a4a 0%, #0d1829 100%);
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    border: 2px solid var(--gold);
+    max-width: 90%;
+    width: 350px;
+}
+
+.reconnect-content h3 {
+    color: var(--gold);
+    margin-bottom: 15px;
+    font-size: 1.4em;
+}
+
+.reconnect-content p {
+    margin: 10px 0;
+    color: #ccc;
+}
+
+.reconnect-content strong {
+    color: var(--gold);
+}
+
+.reconnect-content button {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1em;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.reconnect-content button:first-of-type {
+    background: var(--gold);
+    color: #000;
+}
+
+.reconnect-content button.secondary {
+    background: #333;
+    color: #fff;
+}
+
+.connection-lost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+}
+
+.connection-content {
+    text-align: center;
+    color: white;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #333;
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading {
+    color: var(--gold);
+    font-size: 1.2em;
+}
+
+/* نشانگر اتصال بازیکن */
+.player-slot.disconnected {
+    opacity: 0.5;
+}
+
+.player-slot.disconnected::after {
+    content: '⚠️';
+    position: absolute;
+    right: 10px;
+}
+
+.opponent.disconnected .opponent-info {
+    opacity: 0.5;
+}
+
+.opponent.disconnected::after {
+    content: '📴';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 0.8em;
+}
