@@ -3,24 +3,42 @@ const Room = require('./Room');
 const storage = require('./Storage');
 
 const rooms = {};
-const socketToDevice = new Map(); // socket.id -> deviceId
+const socketToDevice = new Map();
+
+// === Helper Functions ===
+function normalizeCode(code) {
+    // حذف فاصله و تبدیل به حروف کوچک
+    return code ? code.trim().toLowerCase() : '';
+}
 
 function getRoom(code) {
-    return rooms[code] || null;
+    const normalized = normalizeCode(code);
+    return rooms[normalized] || null;
 }
 
 function createRoom(code, password, hostName, scoreLimit) {
-    if (rooms[code]) return null;
-    rooms[code] = new Room(code, password, hostName, scoreLimit);
-    return rooms[code];
+    const normalized = normalizeCode(code);
+    if (rooms[normalized]) return null;
+    rooms[normalized] = new Room(normalized, password, hostName, scoreLimit);
+    console.log(`[Room] Created: ${normalized}, Total rooms: ${Object.keys(rooms).length}`);
+    return rooms[normalized];
 }
 
 function deleteRoom(code) {
-    if (rooms[code]) {
-        rooms[code].clearTurnTimer();
-        delete rooms[code];
-        console.log(`Room ${code} deleted`);
+    const normalized = normalizeCode(code);
+    if (rooms[normalized]) {
+        rooms[normalized].clearTurnTimer();
+        delete rooms[normalized];
+        console.log(`[Room] Deleted: ${normalized}, Remaining: ${Object.keys(rooms).length}`);
     }
+}
+
+function listRooms() {
+    return Object.keys(rooms).map(code => ({
+        code,
+        players: rooms[code].players.length,
+        phase: rooms[code].phase
+    }));
 }
 
 function broadcastState(io, room) {
@@ -32,12 +50,13 @@ function broadcastState(io, room) {
 }
 
 function startTurnTimer(io, room, roomCode) {
-    room.clearTurnTimer(); // اول پاک کن
+    const normalized = normalizeCode(roomCode);
+    room.clearTurnTimer();
     
     room.startTurnTimer((playerIndex, result) => {
-        if (!rooms[roomCode]) return; // اتاق حذف شده
+        if (!rooms[normalized]) return;
         
-        io.to(roomCode).emit('botAction', {
+        io.to(normalized).emit('botAction', {
             player: playerIndex,
             name: room.players[playerIndex]?.name || 'بازیکن',
             type: result.type,
@@ -45,39 +64,39 @@ function startTurnTimer(io, room, roomCode) {
         });
 
         if (result.type === 'proposal') {
-            io.to(roomCode).emit('proposalUpdate', {
+            io.to(normalized).emit('proposalUpdate', {
                 player: playerIndex,
                 name: room.players[playerIndex]?.name,
                 action: result.action,
                 value: result.value
             });
-            handleNextProposer(io, room, roomCode);
+            handleNextProposer(io, room, normalized);
         } else if (result.type === 'exchange') {
             broadcastState(io, room);
-            startTurnTimer(io, room, roomCode);
+            startTurnTimer(io, room, normalized);
         } else if (result.type === 'mode') {
-            io.to(roomCode).emit('modeSelected', {
+            io.to(normalized).emit('modeSelected', {
                 name: room.players[playerIndex]?.name,
                 mode: result.mode,
                 suit: result.suit
             });
             broadcastState(io, room);
-            startTurnTimer(io, room, roomCode);
+            startTurnTimer(io, room, normalized);
         } else if (result.type === 'play') {
-            io.to(roomCode).emit('cardAction', {
+            io.to(normalized).emit('cardAction', {
                 player: playerIndex,
                 card: result.card,
                 turn: room.turn
             });
             if (room.playedCards.length === 4) {
-                handleRoundEnd(io, room, roomCode);
+                handleRoundEnd(io, room, normalized);
             } else {
                 broadcastState(io, room);
-                startTurnTimer(io, room, roomCode);
+                startTurnTimer(io, room, normalized);
             }
         }
 
-        io.to(roomCode).emit('timerStart', {
+        io.to(normalized).emit('timerStart', {
             player: room.turn,
             duration: room.turnDuration
         });
@@ -85,84 +104,90 @@ function startTurnTimer(io, room, roomCode) {
 }
 
 function handleRoundEnd(io, room, roomCode) {
+    const normalized = normalizeCode(roomCode);
     room.clearTurnTimer();
     
     setTimeout(() => {
-        if (!rooms[roomCode]) return;
+        if (!rooms[normalized]) return;
         
         let result = room.resolveRound();
-        io.to(roomCode).emit('roundResult', result);
+        io.to(normalized).emit('roundResult', result);
 
         if (room.hands[0].length === 0) {
             let endResult = room.endMatch();
-            io.to(roomCode).emit('matchEnded', endResult);
+            io.to(normalized).emit('matchEnded', endResult);
 
             if (endResult.gameOver) {
-                io.to(roomCode).emit('gameOver', endResult);
+                io.to(normalized).emit('gameOver', endResult);
             } else {
-                io.to(roomCode).emit('nextMatchCountdown', { seconds: 10 });
+                io.to(normalized).emit('nextMatchCountdown', { seconds: 10 });
                 setTimeout(() => {
-                    if (!rooms[roomCode]) return;
+                    if (!rooms[normalized]) return;
                     room.startNextMatch();
-                    io.to(roomCode).emit('newMatchStarting');
+                    io.to(normalized).emit('newMatchStarting');
                     broadcastState(io, room);
-                    io.to(roomCode).emit('updatePlayerList', room.getPlayerList());
-                    startTurnTimer(io, room, roomCode);
+                    io.to(normalized).emit('updatePlayerList', room.getPlayerList());
+                    startTurnTimer(io, room, normalized);
                 }, 10000);
             }
         } else {
             broadcastState(io, room);
-            startTurnTimer(io, room, roomCode);
+            startTurnTimer(io, room, normalized);
         }
     }, 1500);
 }
 
 function handleNextProposer(io, room, roomCode) {
-    if (!rooms[roomCode]) return;
+    const normalized = normalizeCode(roomCode);
+    if (!rooms[normalized]) return;
     
     let active = room.getActiveProposers();
     
     if (active === 0) {
         room.startMatch();
-        io.to(roomCode).emit('proposalRestart', { reason: 'همه پاس کردند' });
+        io.to(normalized).emit('proposalRestart', { reason: 'همه پاس کردند' });
         broadcastState(io, room);
-        startTurnTimer(io, room, roomCode);
+        startTurnTimer(io, room, normalized);
         return;
     }
     
     if (active === 1) {
         let result = room.finishProposalPhase();
         if (!result) {
-            io.to(roomCode).emit('proposalRestart', { reason: 'پیشنهاد معتبر نبود' });
+            io.to(normalized).emit('proposalRestart', { reason: 'پیشنهاد معتبر نبود' });
             room.startMatch();
             broadcastState(io, room);
-            startTurnTimer(io, room, roomCode);
+            startTurnTimer(io, room, normalized);
             return;
         }
-        io.to(roomCode).emit('leaderSelected', {
+        io.to(normalized).emit('leaderSelected', {
             leader: result.leader,
             name: result.name,
             contract: result.contract
         });
         broadcastState(io, room);
-        startTurnTimer(io, room, roomCode);
+        startTurnTimer(io, room, normalized);
         return;
     }
     
     room.nextProposer();
     broadcastState(io, room);
-    startTurnTimer(io, room, roomCode);
+    startTurnTimer(io, room, normalized);
 }
 
-// پاکسازی اتاق‌های خالی
+// پاکسازی اتاق‌های خالی - فقط اگر همه قطع و غیرفعال باشند
 function cleanupRooms() {
     const now = Date.now();
+    const maxInactiveTime = 30 * 60 * 1000; // 30 دقیقه
+    
     Object.keys(rooms).forEach(code => {
         const room = rooms[code];
         const allDisconnected = room.players.every(p => !p.connected);
-        const inactive = now - (room.lastActivity || now) > 30 * 60 * 1000;
+        const inactive = now - (room.lastActivity || now) > maxInactiveTime;
         
+        // فقط اگر همه قطع باشند و 30 دقیقه غیرفعال باشد
         if (allDisconnected && inactive) {
+            console.log(`[Cleanup] Removing inactive room: ${code}`);
             deleteRoom(code);
         }
     });
@@ -178,9 +203,14 @@ function setupSocketHandlers(io) {
         let myIndex = -1;
         let myDeviceId = null;
 
-        console.log('New connection:', socket.id);
+        console.log(`[Socket] Connected: ${socket.id}`);
 
-        // --- احراز هویت با deviceId ---
+        // === Debug: لیست اتاق‌ها ===
+        socket.on('listRooms', () => {
+            socket.emit('roomList', listRooms());
+        });
+
+        // === احراز هویت ===
         socket.on('authenticate', ({ deviceId, playerName }) => {
             myDeviceId = deviceId;
             socketToDevice.set(socket.id, deviceId);
@@ -188,14 +218,12 @@ function setupSocketHandlers(io) {
             let session = storage.getSession(deviceId);
             
             if (!session) {
-                // سشن جدید
                 storage.createSession(deviceId, playerName);
                 socket.emit('authenticated', { 
                     isNew: true, 
                     hasActiveGame: false 
                 });
             } else {
-                // سشن موجود - چک کردن بازی فعال
                 const activeRoom = session.roomCode ? getRoom(session.roomCode) : null;
                 
                 if (activeRoom && session.playerIndex !== null) {
@@ -227,7 +255,7 @@ function setupSocketHandlers(io) {
             }
         });
 
-        // --- اتصال مجدد خودکار ---
+        // === اتصال مجدد خودکار ===
         socket.on('autoReconnect', ({ deviceId }) => {
             const session = storage.getSession(deviceId);
             if (!session || !session.roomCode) {
@@ -238,7 +266,7 @@ function setupSocketHandlers(io) {
             const room = getRoom(session.roomCode);
             if (!room) {
                 storage.clearSessionRoom(deviceId);
-                socket.emit('reconnectFailed', { reason: 'اتاق پیدا نشد' });
+                socket.emit('reconnectFailed', { reason: 'اتاق منقضی شده است' });
                 return;
             }
 
@@ -251,7 +279,6 @@ function setupSocketHandlers(io) {
                 return;
             }
 
-            // اتصال مجدد موفق
             myRoom = session.roomCode;
             myIndex = playerIndex;
             myDeviceId = deviceId;
@@ -274,68 +301,75 @@ function setupSocketHandlers(io) {
             
             io.to(myRoom).emit('updatePlayerList', room.getPlayerList());
             
-            console.log(`Player ${session.playerName} auto-reconnected to ${myRoom}`);
+            console.log(`[Reconnect] ${session.playerName} -> ${myRoom}`);
         });
 
-        // --- ساخت اتاق ---
+        // === ساخت اتاق ===
         socket.on('createRoom', ({ code, name, password, scoreLimit }) => {
             if (!code || !name) {
                 socket.emit('error', 'کد اتاق و نام الزامی است');
                 return;
             }
 
-            // محدودیت تعداد اتاق
-            const deviceRooms = Object.values(rooms).filter(r => 
-                r.players.some(p => socketToDevice.get(p.id) === myDeviceId)
-            );
-            if (deviceRooms.length >= 2) {
-                socket.emit('error', 'حداکثر ۲ اتاق می‌توانید داشته باشید');
-                return;
+            const normalizedCode = normalizeCode(code);
+            
+            // بررسی تعداد اتاق‌های این کاربر
+            if (myDeviceId) {
+                const deviceRooms = Object.values(rooms).filter(r => 
+                    r.players.some(p => socketToDevice.get(p.id) === myDeviceId)
+                );
+                if (deviceRooms.length >= 2) {
+                    socket.emit('error', 'حداکثر ۲ اتاق می‌توانید داشته باشید');
+                    return;
+                }
             }
 
-            if (getRoom(code)) {
+            if (getRoom(normalizedCode)) {
                 socket.emit('error', 'این کد اتاق قبلاً استفاده شده');
                 return;
             }
 
-            const room = createRoom(code, password || '', name, parseInt(scoreLimit) || 500);
-            if (!room.addPlayer(socket.id, name)) {
+            const room = createRoom(normalizedCode, password || '', name, parseInt(scoreLimit) || 500);
+            if (!room || !room.addPlayer(socket.id, name)) {
                 socket.emit('error', 'خطا در ایجاد اتاق');
                 return;
             }
 
-            myRoom = code;
+            myRoom = normalizedCode;
             myIndex = 0;
 
-            // ذخیره در سشن
             if (myDeviceId) {
                 storage.updateSession(myDeviceId, {
                     playerName: name,
-                    roomCode: code,
+                    roomCode: normalizedCode,
                     playerIndex: 0
                 });
             }
 
-            socket.join(code);
+            socket.join(normalizedCode);
             socket.emit('roomCreated', {
-                code,
+                code: normalizedCode,
                 index: 0,
                 scoreLimit: room.scoreLimit
             });
-            io.to(code).emit('updatePlayerList', room.getPlayerList());
+            io.to(normalizedCode).emit('updatePlayerList', room.getPlayerList());
             
-            console.log(`Room ${code} created by ${name}`);
+            console.log(`[Room] ${name} created room: ${normalizedCode}`);
         });
 
-        // --- ورود به اتاق ---
+        // === ورود به اتاق ===
         socket.on('joinRoom', ({ code, name, password }) => {
             if (!code || !name) {
                 socket.emit('error', 'کد اتاق و نام الزامی است');
                 return;
             }
 
-            const room = getRoom(code);
+            const normalizedCode = normalizeCode(code);
+            const room = getRoom(normalizedCode);
+            
             if (!room) {
+                console.log(`[Join] Room not found: ${normalizedCode}`);
+                console.log(`[Join] Available rooms: ${Object.keys(rooms).join(', ') || 'none'}`);
                 socket.emit('error', 'اتاق یافت نشد');
                 return;
             }
@@ -355,29 +389,29 @@ function setupSocketHandlers(io) {
                 
                 // Reconnect
                 room.reconnectPlayer(existing, socket.id);
-                myRoom = code;
+                myRoom = normalizedCode;
                 myIndex = existing;
 
                 if (myDeviceId) {
                     storage.updateSession(myDeviceId, {
                         playerName: name,
-                        roomCode: code,
+                        roomCode: normalizedCode,
                         playerIndex: existing
                     });
                 }
 
-                socket.join(code);
+                socket.join(normalizedCode);
                 socket.emit('roomJoined', {
-                    code,
+                    code: normalizedCode,
                     index: existing,
                     isReconnect: true,
                     scoreLimit: room.scoreLimit
                 });
                 io.to(socket.id).emit('gameState', room.getStateForPlayer(myIndex));
-                socket.to(code).emit('playerRejoined', { index: existing, name });
-                io.to(code).emit('updatePlayerList', room.getPlayerList());
+                socket.to(normalizedCode).emit('playerRejoined', { index: existing, name });
+                io.to(normalizedCode).emit('updatePlayerList', room.getPlayerList());
                 
-                console.log(`Player ${name} reconnected to ${code}`);
+                console.log(`[Join] ${name} reconnected to: ${normalizedCode}`);
                 return;
             }
 
@@ -392,30 +426,42 @@ function setupSocketHandlers(io) {
                 return;
             }
 
-            myRoom = code;
+            myRoom = normalizedCode;
             myIndex = room.players.length - 1;
 
             if (myDeviceId) {
                 storage.updateSession(myDeviceId, {
                     playerName: name,
-                    roomCode: code,
+                    roomCode: normalizedCode,
                     playerIndex: myIndex
                 });
             }
 
-            socket.join(code);
+            socket.join(normalizedCode);
             socket.emit('roomJoined', {
-                code,
+                code: normalizedCode,
                 index: myIndex,
                 isReconnect: false,
                 scoreLimit: room.scoreLimit
             });
-            io.to(code).emit('updatePlayerList', room.getPlayerList());
+            io.to(normalizedCode).emit('updatePlayerList', room.getPlayerList());
             
-            console.log(`Player ${name} joined ${code}`);
+            console.log(`[Join] ${name} joined: ${normalizedCode} (${room.players.length}/4)`);
         });
 
-        // --- آماده بودن ---
+        // === بررسی وجود اتاق ===
+        socket.on('checkRoom', ({ code }) => {
+            const normalizedCode = normalizeCode(code);
+            const room = getRoom(normalizedCode);
+            socket.emit('roomCheck', {
+                exists: !!room,
+                code: normalizedCode,
+                players: room ? room.players.length : 0,
+                isFull: room ? room.players.length >= 4 : false
+            });
+        });
+
+        // === آماده بودن ===
         socket.on('playerReady', () => {
             const room = getRoom(myRoom);
             if (!room || myIndex === -1) return;
@@ -430,7 +476,7 @@ function setupSocketHandlers(io) {
             io.to(myRoom).emit('updatePlayerList', room.getPlayerList());
         });
 
-        // --- پیشنهاد ---
+        // === پیشنهاد ===
         socket.on('submitProposal', val => {
             const room = getRoom(myRoom);
             if (!room || myIndex === -1) return;
@@ -466,7 +512,7 @@ function setupSocketHandlers(io) {
             }
         });
 
-        // --- تبادل کارت ---
+        // === تبادل کارت ===
         socket.on('exchangeCards', cardIndices => {
             const room = getRoom(myRoom);
             if (!room || myIndex === -1) return;
@@ -480,7 +526,7 @@ function setupSocketHandlers(io) {
             }
         });
 
-        // --- انتخاب مد ---
+        // === انتخاب مد ===
         socket.on('selectMode', data => {
             const room = getRoom(myRoom);
             if (!room || myIndex === -1) return;
@@ -499,7 +545,7 @@ function setupSocketHandlers(io) {
             }
         });
 
-        // --- بازی کارت ---
+        // === بازی کارت ===
         socket.on('playCard', cardIndex => {
             const room = getRoom(myRoom);
             if (!room || myIndex === -1) return;
@@ -526,7 +572,7 @@ function setupSocketHandlers(io) {
             }
         });
 
-        // --- ریست بازی ---
+        // === ریست بازی ===
         socket.on('resetGame', () => {
             const room = getRoom(myRoom);
             if (!room || myIndex !== 0) {
@@ -539,7 +585,7 @@ function setupSocketHandlers(io) {
             io.to(myRoom).emit('updatePlayerList', room.getPlayerList());
         });
 
-        // --- ترک بازی ---
+        // === ترک بازی ===
         socket.on('leaveRoom', () => {
             if (myRoom && myDeviceId) {
                 storage.clearSessionRoom(myDeviceId);
@@ -560,7 +606,7 @@ function setupSocketHandlers(io) {
             myIndex = -1;
         });
 
-        // --- صدا ---
+        // === صدا ===
         socket.on('voiceSignal', ({ to, signal }) => {
             const room = getRoom(myRoom);
             if (!room || !room.players[to]) return;
@@ -577,9 +623,16 @@ function setupSocketHandlers(io) {
             }
         });
 
-        // --- قطع اتصال ---
+        // === Ping/Pong ===
+        socket.on('ping', () => {
+            socket.emit('pong');
+            const room = getRoom(myRoom);
+            if (room) room.lastActivity = Date.now();
+        });
+
+        // === قطع اتصال ===
         socket.on('disconnect', () => {
-            console.log('Disconnected:', socket.id);
+            console.log(`[Socket] Disconnected: ${socket.id}`);
             socketToDevice.delete(socket.id);
 
             const room = getRoom(myRoom);
@@ -592,17 +645,7 @@ function setupSocketHandlers(io) {
                     name: room.players[myIndex].name
                 });
                 io.to(myRoom).emit('updatePlayerList', room.getPlayerList());
-
-                // اگر نوبت این بازیکن بود، تایمر ادامه پیدا می‌کند
-                // و بات جای او بازی می‌کند
             }
-        });
-
-        // --- Ping/Pong برای Keep-Alive ---
-        socket.on('ping', () => {
-            socket.emit('pong');
-            const room = getRoom(myRoom);
-            if (room) room.lastActivity = Date.now();
         });
     });
 }

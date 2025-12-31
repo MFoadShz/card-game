@@ -2,31 +2,33 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_FILE = path.join(__dirname, '../data/sessions.json');
-const ROOMS_FILE = path.join(__dirname, '../data/rooms.json');
+const DATA_DIR = path.join(__dirname, '../data');
+const DATA_FILE = path.join(DATA_DIR, 'sessions.json');
 
-// اطمینان از وجود پوشه data
-const dataDir = path.join(__dirname, '../data');
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+// اطمینان از وجود پوشه
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
 class Storage {
     constructor() {
         this.sessions = this.load(DATA_FILE);
-        this.roomsBackup = this.load(ROOMS_FILE);
         
         // ذخیره خودکار هر 30 ثانیه
         setInterval(() => this.saveAll(), 30000);
+        
+        // پاکسازی سشن‌های قدیمی در شروع
+        this.cleanupOldSessions();
     }
 
     load(file) {
         try {
             if (fs.existsSync(file)) {
-                return JSON.parse(fs.readFileSync(file, 'utf8'));
+                const data = fs.readFileSync(file, 'utf8');
+                return JSON.parse(data);
             }
         } catch (e) {
-            console.error('Storage load error:', e);
+            console.error('[Storage] Load error:', e.message);
         }
         return {};
     }
@@ -35,7 +37,7 @@ class Storage {
         try {
             fs.writeFileSync(file, JSON.stringify(data, null, 2));
         } catch (e) {
-            console.error('Storage save error:', e);
+            console.error('[Storage] Save error:', e.message);
         }
     }
 
@@ -43,26 +45,25 @@ class Storage {
         this.save(DATA_FILE, this.sessions);
     }
 
-    // --- Session Management ---
-    
     createSession(deviceId, playerName) {
         const sessionId = this.generateId();
         this.sessions[deviceId] = {
             sessionId,
-            playerName,
+            playerName: playerName || '',
             roomCode: null,
             playerIndex: null,
             lastSeen: Date.now(),
             created: Date.now()
         };
         this.saveAll();
+        console.log(`[Session] Created for device: ${deviceId.substring(0, 10)}...`);
         return sessionId;
     }
 
     getSession(deviceId) {
         const session = this.sessions[deviceId];
         if (session) {
-            // پاک کردن سشن‌های قدیمی‌تر از 24 ساعت
+            // سشن‌های قدیمی‌تر از 24 ساعت
             if (Date.now() - session.lastSeen > 24 * 60 * 60 * 1000) {
                 delete this.sessions[deviceId];
                 return null;
@@ -87,18 +88,22 @@ class Storage {
         }
     }
 
-    // --- Cleanup ---
-    
     cleanupOldSessions() {
         const now = Date.now();
-        const maxAge = 24 * 60 * 60 * 1000; // 24 ساعت
+        const maxAge = 24 * 60 * 60 * 1000;
+        let cleaned = 0;
         
         Object.keys(this.sessions).forEach(deviceId => {
             if (now - this.sessions[deviceId].lastSeen > maxAge) {
                 delete this.sessions[deviceId];
+                cleaned++;
             }
         });
-        this.saveAll();
+        
+        if (cleaned > 0) {
+            console.log(`[Storage] Cleaned ${cleaned} old sessions`);
+            this.saveAll();
+        }
     }
 
     generateId() {

@@ -633,20 +633,9 @@ function backToWelcome() {
     document.getElementById('waitingRoom').style.display = 'none';
 }
 
-function createRoom() {
-    const name = document.getElementById('createName').value.trim();
-    const code = document.getElementById('createCode').value.trim();
-    const password = document.getElementById('createPassword').value;
-    const limit = document.getElementById('createScoreLimit').value;
-
-    if (!name || !code) {
-        alert('نام و کد اتاق الزامی است');
-        return;
-    }
-
-    myName = name;
-    socket.emit('createRoom', { code, name, password, scoreLimit: limit });
-}
+socket.on('roomCheck', (data) => {
+    console.log('Room check result:', data);
+});
 
 function joinRoom() {
     const name = document.getElementById('joinName').value.trim();
@@ -658,8 +647,38 @@ function joinRoom() {
         return;
     }
 
+    // نرمال‌سازی کد اتاق
+    const normalizedCode = code.trim().toLowerCase();
+
     myName = name;
-    socket.emit('joinRoom', { code, name, password });
+    socket.emit('joinRoom', { 
+        code: normalizedCode, 
+        name, 
+        password 
+    });
+}
+
+function createRoom() {
+    const name = document.getElementById('createName').value.trim();
+    const code = document.getElementById('createCode').value.trim();
+    const password = document.getElementById('createPassword').value;
+    const limit = document.getElementById('createScoreLimit').value;
+
+    if (!name || !code) {
+        alert('نام و کد اتاق الزامی است');
+        return;
+    }
+
+    // نرمال‌سازی کد اتاق
+    const normalizedCode = code.trim().toLowerCase();
+
+    myName = name;
+    socket.emit('createRoom', { 
+        code: normalizedCode, 
+        name, 
+        password, 
+        scoreLimit: limit 
+    });
 }
 
 function showWaitingRoom() {
