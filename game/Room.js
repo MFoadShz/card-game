@@ -1,5 +1,5 @@
 // game/Room.js
-const { createDeck, sortCards, SUITS } = require('./Deck');
+const { createDeck, sortCards, SUITS, RANK_ORDERS } = require('./Deck');
 const { calculateScore, resolveRoundWinner } = require('./Rules');
 const BotAI = require('./BotAI');
 
@@ -20,7 +20,7 @@ class Room {
         this.turn = 0;
         this.leader = -1;
         this.contract = 0;
-        this.gameMode = 'hokm';
+        this.gameMode = 'hokm';  // پیش‌فرض - بعداً توسط حاکم تغییر می‌کند
         this.masterSuit = null;
         this.passed = {};
         this.proposalLog = [];
@@ -28,13 +28,15 @@ class Room {
         this.gameHistory = [];
         this.botAI = new BotAI();
         this.turnTimer = null;
-        this.turnDuration = 30000;
+        this.turnDuration = 30000; // 30 ثانیه
         this.turnStartTime = null;
         this.timerCallback = null;
         this.lastActivity = Date.now();
-        this.timerLock = false; // جلوگیری از race condition
+        this.timerLock = false;
     }
 
+    // === Timer Methods ===
+    
     startTurnTimer(callback) {
         if (this.timerLock) return;
         this.timerLock = true;
@@ -86,10 +88,12 @@ class Room {
                 this.timerCallback(playerIndex, result);
             }
         } catch (e) {
-            console.error('Timeout handler error:', e);
+            console.error('[Room] Timeout handler error:', e);
         }
     }
 
+    // === Bot AI Methods ===
+    
     botPropose(playerIndex) {
         const hand = this.hands[playerIndex];
         if (!hand || hand.length === 0) {
@@ -149,6 +153,8 @@ class Room {
         return { type: 'play', card };
     }
 
+    // === Player Management ===
+    
     addPlayer(id, name) {
         if (this.players.length >= 4) return false;
         this.players.push({ 
@@ -176,6 +182,8 @@ class Room {
         return this.players.length === 4 && this.players.every(p => p.ready && p.connected);
     }
 
+    // === Game Flow ===
+    
     startMatch() {
         this.phase = 'proposing';
         this.hands = [[], [], [], []];
@@ -185,7 +193,7 @@ class Room {
         this.centerStack = [];
         this.leader = -1;
         this.contract = 0;
-        this.gameMode = 'hokm';
+        this.gameMode = 'hokm';  // ریست به پیش‌فرض - حاکم بعداً تغییر می‌دهد
         this.masterSuit = null;
         this.passed = { 0: false, 1: false, 2: false, 3: false };
         this.proposalLog = [];
@@ -193,7 +201,7 @@ class Room {
 
         let deck = createDeck();
 
-        // تقسیم کارت
+        // تقسیم کارت - 12 کارت برای هر بازیکن
         for (let i = 0; i < 12; i++) {
             for (let p = 0; p < 4; p++) {
                 if (deck.length > 0) {
@@ -202,9 +210,9 @@ class Room {
             }
         }
 
-        // مرتب‌سازی
+        // مرتب‌سازی با حالت پیش‌فرض
         for (let i = 0; i < 4; i++) {
-            this.hands[i] = sortCards(this.hands[i]);
+            this.hands[i] = sortCards(this.hands[i], 'hokm');
         }
 
         // 4 کارت وسط
@@ -213,8 +221,13 @@ class Room {
         }
 
         this.turn = 0;
+        this.lastActivity = Date.now();
+        
+        console.log(`[Room ${this.code}] Match started`);
     }
 
+    // === Proposal Phase ===
+    
     submitProposal(playerIndex, value) {
         if (this.phase !== 'proposing') return false;
         if (this.turn !== playerIndex) return false;
@@ -222,6 +235,9 @@ class Room {
 
         this.contract = value;
         this.proposalLog.push({ player: playerIndex, action: 'call', value });
+        this.lastActivity = Date.now();
+        
+        console.log(`[Room ${this.code}] Player ${playerIndex} proposed ${value}`);
         return true;
     }
 
@@ -231,6 +247,9 @@ class Room {
 
         this.passed[playerIndex] = true;
         this.proposalLog.push({ player: playerIndex, action: 'pass' });
+        this.lastActivity = Date.now();
+        
+        console.log(`[Room ${this.code}] Player ${playerIndex} passed`);
         return true;
     }
 
@@ -251,16 +270,24 @@ class Room {
     finishProposalPhase() {
         if (this.contract < 100) return null;
 
-        let winner = parseInt(Object.keys(this.passed).find(k => !this.passed[k]));
-        if (isNaN(winner)) return null;
+        // پیدا کردن برنده پیشنهاد
+        const winnerKey = Object.keys(this.passed).find(k => !this.passed[k]);
+        if (winnerKey === undefined) return null;
+        
+        const winner = parseInt(winnerKey);
 
         this.leader = winner;
         this.phase = 'exchanging';
         this.turn = winner;
 
         // دادن کارت‌های وسط به حاکم
-        this.hands[this.leader] = sortCards(this.hands[this.leader].concat(this.centerStack));
+        this.hands[this.leader] = sortCards(
+            this.hands[this.leader].concat(this.centerStack),
+            'hokm'
+        );
         this.centerStack = [];
+
+        console.log(`[Room ${this.code}] Leader: Player ${winner}, Contract: ${this.contract}`);
 
         return {
             leader: this.leader,
@@ -269,6 +296,8 @@ class Room {
         };
     }
 
+    // === Exchange Phase ===
+    
     exchangeCards(playerIndex, cardIndices) {
         if (this.phase !== 'exchanging') return false;
         if (playerIndex !== this.leader) return false;
@@ -282,45 +311,72 @@ class Room {
         if (uniqueIndices.length !== 4) return false;
         if (uniqueIndices.some(i => i < 0 || i >= hand.length)) return false;
 
-        // برداشتن کارت‌ها
+        // برداشتن کارت‌ها (از آخر به اول برای حفظ ایندکس‌ها)
         const exchanged = [];
-        cardIndices.sort((a, b) => b - a);
-        for (let i of cardIndices) {
+        const sortedIndices = [...cardIndices].sort((a, b) => b - a);
+        for (const i of sortedIndices) {
             exchanged.push(hand.splice(i, 1)[0]);
         }
         this.centerStack = exchanged;
 
-        this.hands[playerIndex] = sortCards(this.hands[playerIndex]);
+        this.hands[playerIndex] = sortCards(this.hands[playerIndex], 'hokm');
         this.phase = 'selectMode';
+        this.lastActivity = Date.now();
+        
+        console.log(`[Room ${this.code}] Player ${playerIndex} exchanged 4 cards`);
         return true;
     }
 
+    // === Mode Selection Phase ===
+    
     selectMode(playerIndex, mode, suit) {
-        if (this.phase !== 'selectMode') return false;
-        if (playerIndex !== this.leader) return false;
-
-        const validModes = ['hokm', 'nars', 'asNars', 'sars'];
-        if (!validModes.includes(mode)) return false;
-
-        this.gameMode = mode;
-
-        if (mode !== 'sars') {
-            if (!suit || !SUITS.includes(suit)) return false;
-            this.masterSuit = suit;
-        } else {
-            this.masterSuit = null;
+        if (this.phase !== 'selectMode') {
+            console.log(`[Room ${this.code}] selectMode failed: wrong phase (${this.phase})`);
+            return false;
+        }
+        if (playerIndex !== this.leader) {
+            console.log(`[Room ${this.code}] selectMode failed: not leader`);
+            return false;
         }
 
-        // مرتب‌سازی مجدد با مد جدید
+        const validModes = ['hokm', 'nars', 'asNars', 'sars'];
+        if (!validModes.includes(mode)) {
+            console.log(`[Room ${this.code}] selectMode failed: invalid mode (${mode})`);
+            return false;
+        }
+
+        // ✅ تغییر gameMode
+        this.gameMode = mode;
+        console.log(`[Room ${this.code}] Game mode set to: ${mode}`);
+
+        // تنظیم خال حکم
+        if (mode !== 'sars') {
+            if (!suit || !SUITS.includes(suit)) {
+                console.log(`[Room ${this.code}] selectMode failed: invalid suit (${suit})`);
+                return false;
+            }
+            this.masterSuit = suit;
+            console.log(`[Room ${this.code}] Master suit set to: ${suit}`);
+        } else {
+            this.masterSuit = null;
+            console.log(`[Room ${this.code}] No master suit (sars mode)`);
+        }
+
+        // ✅ مرتب‌سازی مجدد کارت‌ها با ترتیب جدید
         for (let i = 0; i < 4; i++) {
             this.hands[i] = sortCards(this.hands[i], this.gameMode);
         }
 
         this.phase = 'playing';
         this.turn = this.leader;
+        this.lastActivity = Date.now();
+        
+        console.log(`[Room ${this.code}] Phase changed to: playing`);
         return true;
     }
 
+    // === Playing Phase ===
+    
     playCard(playerIndex, cardIndex) {
         if (this.phase !== 'playing') return null;
         if (this.turn !== playerIndex) return null;
@@ -335,6 +391,7 @@ class Room {
         if (leadSuit) {
             const hasSuit = hand.some(c => c.s === leadSuit);
             if (hasSuit && card.s !== leadSuit) {
+                console.log(`[Room ${this.code}] Must follow suit!`);
                 return null;
             }
         }
@@ -350,15 +407,27 @@ class Room {
         });
 
         this.turn = (this.turn + 1) % 4;
+        this.lastActivity = Date.now();
+        
+        console.log(`[Room ${this.code}] Player ${playerIndex} played ${card.v}${card.s}`);
         return card;
     }
 
+    // === Round Resolution ===
+    
     resolveRound() {
         if (this.playedCards.length !== 4) return null;
 
-        let winnerIndex = resolveRoundWinner(this.playedCards, this.gameMode, this.masterSuit);
-        let winner = winnerIndex;
-        let team = winner % 2;
+        // ✅ استفاده از gameMode فعلی
+        console.log(`[Room ${this.code}] Resolving round with mode: ${this.gameMode}, trump: ${this.masterSuit}`);
+        
+        let winnerPlayerIndex = resolveRoundWinner(
+            this.playedCards, 
+            this.gameMode,      // ← حالت بازی فعلی
+            this.masterSuit     // ← خال حکم
+        );
+        
+        let team = winnerPlayerIndex % 2;
 
         let roundCards = this.playedCards.map(p => p.c);
         this.collectedCards[team].push(...roundCards);
@@ -366,33 +435,38 @@ class Room {
         this.roundScores[team] += points;
 
         const result = {
-            winner,
-            winnerName: this.players[winner]?.name || 'بازیکن',
+            winner: winnerPlayerIndex,
+            winnerName: this.players[winnerPlayerIndex]?.name || 'بازیکن',
             team,
             points,
             playedCards: this.playedCards.map(p => ({
                 player: p.p,
                 card: p.c,
-                isWinner: p.p === winner
+                isWinner: p.p === winnerPlayerIndex
             }))
         };
 
-        this.playedCards = [];
-        this.turn = winner;
+        console.log(`[Room ${this.code}] Round winner: Player ${winnerPlayerIndex} (${result.winnerName}), Points: ${points}`);
 
-        // آخرین دست - امتیاز کارت‌های وسط
+        this.playedCards = [];
+        this.turn = winnerPlayerIndex;
+
+        // آخرین دست - امتیاز کارت‌های وسط به تیم برنده
         if (this.hands[0].length === 0) {
             let extraPoints = calculateScore(this.centerStack);
             this.roundScores[team] += extraPoints;
+            console.log(`[Room ${this.code}] Last trick bonus: ${extraPoints} to team ${team}`);
         }
 
         return result;
     }
 
+    // === Match End ===
+    
     endMatch() {
-        let leaderTeam = this.leader % 2;
-        let leaderScore = this.roundScores[leaderTeam];
-        let success = leaderScore >= this.contract;
+        const leaderTeam = this.leader % 2;
+        const leaderScore = this.roundScores[leaderTeam];
+        const success = leaderScore >= this.contract;
 
         if (success) {
             this.totalScores[leaderTeam] += leaderScore;
@@ -415,6 +489,8 @@ class Room {
 
         const gameOver = this.totalScores[0] >= this.scoreLimit || 
                          this.totalScores[1] >= this.scoreLimit;
+
+        console.log(`[Room ${this.code}] Match ended - Success: ${success}, Scores: ${this.totalScores}`);
 
         return {
             success,
@@ -439,8 +515,11 @@ class Room {
         this.matchHistory = [];
         this.players.forEach(p => p.ready = false);
         this.clearTurnTimer();
+        console.log(`[Room ${this.code}] Game reset`);
     }
 
+    // === State ===
+    
     getStateForPlayer(index) {
         return {
             phase: this.phase,
@@ -450,8 +529,8 @@ class Room {
             turn: this.turn,
             leader: this.leader,
             contract: this.contract,
-            gameMode: this.gameMode,
-            masterSuit: this.masterSuit,
+            gameMode: this.gameMode,         // ← حالت بازی
+            masterSuit: this.masterSuit,     // ← خال حکم
             roundScores: [...this.roundScores],
             totalScores: [...this.totalScores],
             collectedRounds: [
