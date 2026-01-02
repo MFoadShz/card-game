@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap');
+
+@layer base {
+  html, body {
+    @apply h-full overflow-hidden touch-manipulation;
+  }
+  
+  body {
+    @apply font-vazir bg-gradient-to-br from-game-bg to-base-200 text-base-content;
+    @apply select-none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  /* ===== Playing Card ===== */
+  .playing-card {
+    @apply relative bg-gradient-to-br from-white to-gray-100 rounded-lg shadow-lg;
+    @apply flex items-center justify-center transition-transform duration-150;
+  }
+  
+  .playing-card.black { --card-color: #1a1a2e; }
+  .playing-card.red { --card-color: theme('colors.card-red'); }
+  
+  .playing-card .corner {
+    @apply absolute flex flex-col items-center font-bold leading-none;
+    color: var(--card-color);
+  }
+  
+  .playing-card .corner-top { @apply top-1 right-1.5; }
+  .playing-card .corner-bottom { @apply bottom-1 left-1.5 rotate-180; }
+  .playing-card .rank { @apply text-sm; }
+  .playing-card .suit-icon { @apply text-xs; }
+  .playing-card .center-suit { 
+    @apply text-2xl;
+    color: var(--card-color);
+  }
+  
+  /* Card Sizes */
+  .playing-card { @apply w-[60px] h-[87px]; }
+  .playing-card.sm { @apply w-[45px] h-[65px]; }
+  .playing-card.sm .rank { @apply text-xs; }
+  .playing-card.sm .center-suit { @apply text-lg; }
+  
+  /* Card Back */
+  .card-back {
+    @apply bg-gradient-to-br from-blue-800 to-game-card rounded-lg shadow relative;
+  }
+  
+  .card-back::before {
+    content: '♠♥♦♣';
+    @apply absolute inset-0 flex items-center justify-center;
+    @apply text-[0.5em] text-white/10 tracking-wider;
+  }
+
+  /* ===== Hand Cards ===== */
+  .hand-card {
+    @apply absolute left-1/2 bottom-0 cursor-pointer;
+    @apply transition-all duration-150;
+    transform-origin: bottom center;
+    transform: translateX(-50%) rotate(var(--angle, 0deg)) 
+               translateY(calc(-1 * var(--fan-radius, 350px) + 100%));
+  }
+  
+  .hand-card:hover:not(.disabled):not(.selected) {
+    transform: translateX(-50%) rotate(var(--angle, 0deg)) 
+               translateY(calc(-1 * var(--fan-radius, 350px) + 100% - 15px));
+    @apply shadow-xl z-[100];
+  }
+  
+  .hand-card.selected {
+    transform: translateX(-50%) rotate(var(--angle, 0deg)) 
+               translateY(calc(-1 * var(--fan-radius, 350px) + 100% - 20px));
+    @apply shadow-[0_0_15px_theme('colors.accent')];
+  }
+  
+  .hand-card.disabled { @apply opacity-50 cursor-not-allowed; }
+  
+  .my-turn .hand-card:not(.disabled) {
+    @apply animate-glow;
+  }
+
+  /* ===== Played Cards Position ===== */
+  .played-card { @apply absolute transition-all duration-300; }
+  .played-card.pos-0 { @apply -bottom-5 left-1/2 -translate-x-1/2; }
+  .played-card.pos-1 { @apply -right-6 top-1/2 -translate-y-1/2; }
+  .played-card.pos-2 { @apply -top-5 left-1/2 -translate-x-1/2; }
+  .played-card.pos-3 { @apply -left-6 top-1/2 -translate-y-1/2; }
+  .played-card.winner .playing-card { @apply shadow-[0_0_15px_theme('colors.accent')]; }
+
+  /* ===== Proposal Button ===== */
+  .proposal-btn {
+    @apply btn btn-sm bg-base-300 border-0 text-base-content/60;
+  }
+  
+  .proposal-btn.available {
+    @apply bg-base-200 text-base-content border border-primary;
+  }
+  
+  .proposal-btn.available:hover {
+    @apply bg-primary text-primary-content;
+  }
+
+  /* ===== Opponent Card ===== */
+  .opponent-card-top { @apply w-[35px] h-[50px] -mx-3; }
+  .opponent-card-side { @apply w-[30px] h-[42px] -my-2.5; }
+
+  /* ===== Game Log ===== */
+  .log-item {
+    @apply px-2 py-1 mb-0.5 bg-black/40 rounded text-xs animate-fly-up;
+  }
+  .log-item.call { @apply text-success; }
+  .log-item.pass { @apply text-error; }
+  .log-item.info { @apply text-accent; }
+
+  /* ===== Timer ===== */
+  .turn-timer { @apply badge badge-neutral text-sm font-bold; }
+  .turn-timer.warning { @apply badge-warning; }
+  .turn-timer.critical { @apply badge-error animate-pulse; }
+}
+
+@layer utilities {
+  .fan-hand {
+    @apply flex justify-center items-end h-[110px] relative;
+  }
+  
+  .drop-zone-active {
+    @apply border-primary bg-primary/5;
+  }
+  
+  .drop-zone-hover {
+    @apply border-accent bg-accent/10 scale-[1.02];
+  }
+}
