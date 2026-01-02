@@ -1,238 +1,286 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="fa">
+<html dir="rtl" lang="fa" data-theme="game">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0a1628">
   <title>شلم آنلاین</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div id="lobby">
-    <div class="lobby-container">
-      <div class="logo">
-        <span class="logo-suit red">♥</span>
-        <span class="logo-suit black">♠</span>
-        <h1>شلم آنلاین</h1>
-        <span class="logo-suit red">♦</span>
-        <span class="logo-suit black">♣</span>
+  <!-- ===== LOBBY ===== -->
+  <div id="lobby" class="h-full flex items-center justify-center p-4">
+    <div class="w-full max-w-sm">
+      <!-- Logo -->
+      <div class="flex items-center justify-center gap-2 mb-8">
+        <span class="text-2xl text-error animate-pulse-slow">♥</span>
+        <span class="text-2xl text-white animate-pulse-slow" style="animation-delay:0.5s">♠</span>
+        <h1 class="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          شلم آنلاین
+        </h1>
+        <span class="text-2xl text-error animate-pulse-slow" style="animation-delay:1s">♦</span>
+        <span class="text-2xl text-white animate-pulse-slow" style="animation-delay:1.5s">♣</span>
       </div>
 
       <!-- Welcome Screen -->
-      <div id="welcomeScreen" class="welcome-box">
-        <h2>خوش آمدید!</h2>
-        <button class="btn-large btn-primary" onclick="showCreateForm()">🎮 ساخت بازی جدید</button>
-        <button class="btn-large btn-secondary" onclick="showJoinForm()">🚪 ورود به بازی</button>
+      <div id="welcomeScreen" class="text-center space-y-3">
+        <h2 class="text-xl mb-6">خوش آمدید!</h2>
+        <button class="btn btn-primary btn-block gap-2" onclick="showCreateForm()">
+          🎮 ساخت بازی جدید
+        </button>
+        <button class="btn btn-ghost btn-block gap-2" onclick="showJoinForm()">
+          🚪 ورود به بازی
+        </button>
       </div>
 
-      <!-- Create Room Form -->
-      <div id="createForm" class="form-box" style="display:none">
-        <h3>🎮 ساخت بازی جدید</h3>
-        <input type="text" id="createName" placeholder="نام شما" maxlength="12">
-        <input type="text" id="createCode" placeholder="کد اتاق" maxlength="10">
-        <input type="password" id="createPassword" placeholder="رمز عبور (اختیاری)">
-        <div class="score-limit-section">
-          <label>سقف امتیاز:</label>
-          <select id="createScoreLimit">
-            <option value="300">۳۰۰</option>
-            <option value="500" selected>۵۰۰</option>
-            <option value="750">۷۵۰</option>
-            <option value="1000">۱۰۰۰</option>
-          </select>
+      <!-- Create Form -->
+      <div id="createForm" class="card bg-base-300 p-6 hidden">
+        <h3 class="text-lg font-bold text-center mb-4">🎮 ساخت بازی جدید</h3>
+        <div class="space-y-3">
+          <input type="text" id="createName" placeholder="نام شما" maxlength="12"
+                 class="input input-bordered w-full bg-base-100">
+          <input type="text" id="createCode" placeholder="کد اتاق" maxlength="10"
+                 class="input input-bordered w-full bg-base-100">
+          <input type="password" id="createPassword" placeholder="رمز عبور (اختیاری)"
+                 class="input input-bordered w-full bg-base-100">
+          <div class="flex items-center gap-3">
+            <label class="text-sm opacity-70">سقف امتیاز:</label>
+            <select id="createScoreLimit" class="select select-bordered select-sm bg-base-100">
+              <option value="300">۳۰۰</option>
+              <option value="500" selected>۵۰۰</option>
+              <option value="750">۷۵۰</option>
+              <option value="1000">۱۰۰۰</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-block" onclick="createRoom()">✅ ساخت اتاق</button>
+          <button class="btn btn-ghost btn-sm btn-block" onclick="backToWelcome()">← بازگشت</button>
         </div>
-        <button class="btn-primary" onclick="createRoom()">✅ ساخت اتاق</button>
-        <button class="btn-back" onclick="backToWelcome()">← بازگشت</button>
       </div>
 
-      <!-- Join Room Form -->
-      <div id="joinForm" class="form-box" style="display:none">
-        <h3>🚪 ورود به بازی</h3>
-        <input type="text" id="joinName" placeholder="نام شما" maxlength="12">
-        <input type="text" id="joinCode" placeholder="کد اتاق" maxlength="10">
-        <input type="password" id="joinPassword" placeholder="رمز عبور">
-        <button class="btn-primary" onclick="joinRoom()">✅ ورود</button>
-        <button class="btn-back" onclick="backToWelcome()">← بازگشت</button>
+      <!-- Join Form -->
+      <div id="joinForm" class="card bg-base-300 p-6 hidden">
+        <h3 class="text-lg font-bold text-center mb-4">🚪 ورود به بازی</h3>
+        <div class="space-y-3">
+          <input type="text" id="joinName" placeholder="نام شما" maxlength="12"
+                 class="input input-bordered w-full bg-base-100">
+          <input type="text" id="joinCode" placeholder="کد اتاق" maxlength="10"
+                 class="input input-bordered w-full bg-base-100">
+          <input type="password" id="joinPassword" placeholder="رمز عبور"
+                 class="input input-bordered w-full bg-base-100">
+          <button class="btn btn-primary btn-block" onclick="joinRoom()">✅ ورود</button>
+          <button class="btn btn-ghost btn-sm btn-block" onclick="backToWelcome()">← بازگشت</button>
+        </div>
       </div>
 
       <!-- Waiting Room -->
-      <div id="waitingRoom" class="waiting-room" style="display:none">
-        <h3>🎴 اتاق انتظار</h3>
-        <div id="scoreLimitDisplay" class="score-limit-display"></div>
-        <div id="playersList"></div>
-        <div class="team-info">
-          <span class="team team1">تیم ۱: بازیکن ۱ و ۳</span>
-          <span class="team team2">تیم ۲: بازیکن ۲ و ۴</span>
+      <div id="waitingRoom" class="card bg-base-300 p-6 hidden">
+        <h3 class="text-lg font-bold text-center mb-2">🎴 اتاق انتظار</h3>
+        <div id="scoreLimitDisplay" class="text-center text-sm opacity-70 mb-4"></div>
+        <div id="playersList" class="grid grid-cols-2 gap-2 mb-4"></div>
+        <div class="text-center text-xs opacity-60 mb-4 space-y-1">
+          <span class="text-team1">تیم ۱: بازیکن ۱ و ۳</span>
+          <span class="text-team2 block">تیم ۲: بازیکن ۲ و ۴</span>
         </div>
-        <button id="readyBtn" onclick="setReady()">✅ آماده‌ام!</button>
+        <button id="readyBtn" class="btn btn-success btn-block" onclick="setReady()">
+          ✅ آماده‌ام!
+        </button>
       </div>
     </div>
   </div>
 
-  <div id="game" style="display:none">
-    <div id="proposalOverlay" class="proposal-overlay" style="display:none">
-      <div id="waitingMessage" class="waiting-message"></div>
+  <!-- ===== GAME ===== -->
+  <div id="game" class="h-full flex-col relative overflow-hidden hidden">
+    <!-- Proposal Overlay -->
+    <div id="proposalOverlay" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden">
+      <div id="waitingMessage" class="card bg-base-300 p-6 animate-pulse"></div>
     </div>
 
-    <div id="topBar">
-      <div class="score-item team1">
-        <span class="team-label">تیم ۱</span>
-        <span class="score-value" id="score0">0</span>
+    <!-- Top Bar -->
+    <div id="topBar" class="flex justify-between items-center px-4 py-2 bg-black/30 z-50">
+      <div class="text-center">
+        <div class="text-xs opacity-60">تیم ۱</div>
+        <div id="score0" class="text-xl font-bold text-team1">0</div>
       </div>
-      <div class="game-info">
-        <div id="scoreLimitGame" class="score-limit-game"></div>
+      <div class="text-center text-sm">
+        <div id="scoreLimitGame" class="text-xs opacity-50"></div>
         <div id="contractDisplay"></div>
         <div id="trumpDisplay"></div>
       </div>
-      <div class="score-item team2">
-        <span class="team-label">تیم ۲</span>
-        <span class="score-value" id="score1">0</span>
+      <div class="text-center">
+        <div class="text-xs opacity-60">تیم ۲</div>
+        <div id="score1" class="text-xl font-bold text-team2">0</div>
       </div>
     </div>
 
-    <div id="voiceControls">
-      <button id="btnMic" class="voice-btn" onclick="toggleMic()" title="میکروفن">
+    <!-- Voice Controls -->
+    <div id="voiceControls" class="absolute top-14 left-2 z-50">
+      <button id="btnMic" class="btn btn-sm btn-neutral gap-1" onclick="toggleMic()">
         <span class="icon">🎤</span>
-        <span class="status">روشن</span>
+        <span class="status text-xs">روشن</span>
       </button>
-      <div id="voiceStatus" class="voice-status"></div>
+      <div id="voiceStatus" class="text-xs text-center mt-1 opacity-60"></div>
     </div>
 
-    <div id="playerTop" class="opponent top">
-      <div class="opponent-info">
+    <!-- Opponents -->
+    <div id="playerTop" class="opponent absolute top-14 left-1/2 -translate-x-1/2 flex flex-col items-center z-20">
+      <div class="opponent-info flex flex-col items-center px-2 py-1 bg-black/50 rounded text-xs">
         <span class="opponent-name"></span>
-        <span class="card-count"></span>
+        <span class="card-count opacity-60"></span>
       </div>
-      <div class="opponent-cards"></div>
+      <div class="opponent-cards flex mt-1"></div>
     </div>
 
-    <div id="playerLeft" class="opponent left">
-      <div class="opponent-info">
+    <div id="playerLeft" class="opponent absolute left-2 top-1/2 -translate-y-1/2 flex flex-row-reverse items-center z-20">
+      <div class="opponent-info flex flex-col items-center px-2 py-1 bg-black/50 rounded text-xs mr-1">
         <span class="opponent-name"></span>
-        <span class="card-count"></span>
+        <span class="card-count opacity-60"></span>
       </div>
-      <div class="opponent-cards"></div>
+      <div class="opponent-cards flex flex-col"></div>
     </div>
 
-    <div id="playerRight" class="opponent right">
-      <div class="opponent-info">
+    <div id="playerRight" class="opponent absolute right-2 top-1/2 -translate-y-1/2 flex flex-row items-center z-20">
+      <div class="opponent-info flex flex-col items-center px-2 py-1 bg-black/50 rounded text-xs ml-1">
         <span class="opponent-name"></span>
-        <span class="card-count"></span>
+        <span class="card-count opacity-60"></span>
       </div>
-      <div class="opponent-cards"></div>
+      <div class="opponent-cards flex flex-col"></div>
     </div>
 
-    <div id="tableCenter">
-      <div id="dropZone">
-        <div id="playedCards"></div>
-        <div id="dropHint" style="display:none">🎴 کارت را اینجا رها کنید</div>
+    <!-- Table Center -->
+    <div id="tableCenter" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
+                                  w-[85%] max-w-[400px] h-[60vh] min-h-[200px] max-h-[350px]
+                                  flex items-center justify-center">
+      <div id="dropZone" class="relative w-[90%] h-[85%] min-h-[180px] max-h-[300px]
+                                 border-2 border-dashed border-white/10 rounded-2xl
+                                 flex items-center justify-center transition-all">
+        <div id="playedCards" class="relative w-[120px] h-[100px]"></div>
+        <div id="dropHint" class="absolute text-sm opacity-50 hidden">🎴 کارت را اینجا رها کنید</div>
       </div>
-      <div id="statusMessage"></div>
     </div>
 
-    <div id="gameLog"></div>
+    <!-- Game Log -->
+    <div id="gameLog" class="absolute bottom-40 right-2 w-[140px] max-h-[100px] overflow-hidden z-40"></div>
 
-    <div id="myHandArea">
-      <div id="myInfo">
-        <span id="myName"></span>
-        <span id="turnIndicator"></span>
-        <span id="turnTimer" class="turn-timer" style="display:none"></span>
+    <!-- My Hand Area -->
+    <div id="myHandArea" class="absolute bottom-0 left-0 right-0 p-2 
+                                 bg-gradient-to-t from-black/60 to-transparent z-30">
+      <div id="myInfo" class="flex items-center justify-center gap-2 mb-1">
+        <span id="myName" class="font-bold text-primary"></span>
+        <span id="turnIndicator" class="text-accent text-sm"></span>
+        <span id="turnTimer" class="turn-timer hidden"></span>
       </div>
-      <div id="myHand"></div>
+      <div id="myHand" class="fan-hand"></div>
     </div>
 
-    <div id="controls"></div>
+    <!-- Controls -->
+    <div id="controls" class="absolute bottom-44 left-1/2 -translate-x-1/2 flex gap-2 z-50"></div>
 
-    <div id="proposalPanel" class="proposal-panel" style="display:none">
-      <div class="proposal-header">
-        <h3>📢 انتخاب قرارداد</h3>
-        <div id="proposalLogMini" class="proposal-log-mini"></div>
+    <!-- Proposal Panel -->
+    <div id="proposalPanel" class="fixed bottom-40 left-1/2 -translate-x-1/2 
+                                    bg-base-200 p-4 rounded-2xl shadow-xl z-50 w-[90%] max-w-xs hidden">
+      <div class="text-center mb-2">
+        <h3 class="font-bold">📢 انتخاب قرارداد</h3>
+        <div id="proposalLogMini" class="max-h-14 overflow-y-auto text-xs mt-1"></div>
       </div>
-      <div id="proposalGrid" class="proposal-grid"></div>
-      <button class="btn-pass-big" onclick="passProposal()">❌ پاس</button>
+      <div id="proposalGrid" class="grid grid-cols-5 gap-1 mb-2"></div>
+      <button class="btn btn-error btn-block" onclick="passProposal()">❌ پاس</button>
     </div>
   </div>
 
+  <!-- ===== MODALS ===== -->
+  
   <!-- Mode Selection Modal -->
-  <div id="modeModal" class="modal" style="display:none">
-    <div class="modal-content mode-modal">
-      <h3>🎯 انتخاب نوع بازی</h3>
-      <div class="mode-options">
-        <label class="mode-option">
-          <input type="radio" name="gameMode" value="hokm">
-          <div class="mode-card">
-            <div class="mode-title">👑 حکم</div>
-            <div class="mode-desc">آس قوی‌ترین</div>
+  <dialog id="modeModal" class="modal">
+    <div class="modal-box bg-base-200">
+      <h3 class="font-bold text-lg text-center mb-4">🎯 انتخاب نوع بازی</h3>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <label class="cursor-pointer">
+          <input type="radio" name="gameMode" value="hokm" class="hidden peer">
+          <div class="card bg-base-300 p-4 text-center border-2 border-transparent 
+                      peer-checked:border-primary peer-checked:bg-primary/10 transition-all">
+            <div class="text-lg font-bold">👑 حکم</div>
+            <div class="text-xs opacity-60">آس قوی‌ترین</div>
           </div>
         </label>
-        <label class="mode-option">
-          <input type="radio" name="gameMode" value="nars">
-          <div class="mode-card">
-            <div class="mode-title">⬇️ نَرس</div>
-            <div class="mode-desc">دولو قوی‌ترین</div>
+        <label class="cursor-pointer">
+          <input type="radio" name="gameMode" value="nars" class="hidden peer">
+          <div class="card bg-base-300 p-4 text-center border-2 border-transparent 
+                      peer-checked:border-primary peer-checked:bg-primary/10 transition-all">
+            <div class="text-lg font-bold">⬇️ نَرس</div>
+            <div class="text-xs opacity-60">دولو قوی‌ترین</div>
           </div>
         </label>
-        <label class="mode-option">
-          <input type="radio" name="gameMode" value="asNars">
-          <div class="mode-card">
-            <div class="mode-title">🅰️ آس‌نَرس</div>
-            <div class="mode-desc">آس قوی، شاه ضعیف</div>
+        <label class="cursor-pointer">
+          <input type="radio" name="gameMode" value="asNars" class="hidden peer">
+          <div class="card bg-base-300 p-4 text-center border-2 border-transparent 
+                      peer-checked:border-primary peer-checked:bg-primary/10 transition-all">
+            <div class="text-lg font-bold">🅰️ آس‌نَرس</div>
+            <div class="text-xs opacity-60">آس قوی، شاه ضعیف</div>
           </div>
         </label>
-        <label class="mode-option">
-          <input type="radio" name="gameMode" value="sars">
-          <div class="mode-card">
-            <div class="mode-title">🚫 سَرس</div>
-            <div class="mode-desc">بدون حکم</div>
+        <label class="cursor-pointer">
+          <input type="radio" name="gameMode" value="sars" class="hidden peer">
+          <div class="card bg-base-300 p-4 text-center border-2 border-transparent 
+                      peer-checked:border-primary peer-checked:bg-primary/10 transition-all">
+            <div class="text-lg font-bold">🚫 سَرس</div>
+            <div class="text-xs opacity-60">بدون حکم</div>
           </div>
         </label>
       </div>
-      <div id="suitSelector" class="suit-selector" style="display:none">
-        <p>خال حکم:</p>
-        <div class="suits">
-          <button class="suit-btn" data-suit="♠" onclick="selectSuit('♠')">♠</button>
-          <button class="suit-btn red" data-suit="♥" onclick="selectSuit('♥')">♥</button>
-          <button class="suit-btn red" data-suit="♦" onclick="selectSuit('♦')">♦</button>
-          <button class="suit-btn" data-suit="♣" onclick="selectSuit('♣')">♣</button>
+      
+      <div id="suitSelector" class="text-center mb-4 hidden">
+        <p class="text-sm opacity-70 mb-2">خال حکم:</p>
+        <div class="flex justify-center gap-2">
+          <button class="btn btn-square btn-lg text-2xl suit-btn" data-suit="♠" onclick="selectSuit('♠')">♠</button>
+          <button class="btn btn-square btn-lg text-2xl text-card-red suit-btn" data-suit="♥" onclick="selectSuit('♥')">♥</button>
+          <button class="btn btn-square btn-lg text-2xl text-card-red suit-btn" data-suit="♦" onclick="selectSuit('♦')">♦</button>
+          <button class="btn btn-square btn-lg text-2xl suit-btn" data-suit="♣" onclick="selectSuit('♣')">♣</button>
         </div>
       </div>
-      <button id="confirmModeBtn" onclick="confirmMode()" disabled>انتخاب کنید</button>
+      
+      <button id="confirmModeBtn" class="btn btn-primary btn-block" onclick="confirmMode()" disabled>
+        انتخاب کنید
+      </button>
     </div>
-  </div>
+  </dialog>
 
-  <!-- Round Result Modal -->
-  <div id="resultModal" class="modal" style="display:none">
-    <div class="modal-content result-modal">
-      <h3 id="resultTitle"></h3>
-      <div id="resultCards"></div>
-      <div id="resultPoints"></div>
+  <!-- Result Modal -->
+  <dialog id="resultModal" class="modal">
+    <div class="modal-box bg-base-200 text-center">
+      <h3 id="resultTitle" class="font-bold text-lg"></h3>
+      <div id="resultCards" class="flex justify-center gap-2 my-4"></div>
+      <div id="resultPoints" class="text-lg"></div>
     </div>
-  </div>
+  </dialog>
 
   <!-- Match End Modal -->
-  <div id="endModal" class="modal" style="display:none">
-    <div class="modal-content end-modal">
-      <h2 id="endTitle"></h2>
-      <div id="endDetails"></div>
-      <button onclick="playAgain()">🔄 ادامه بازی</button>
+  <dialog id="endModal" class="modal">
+    <div class="modal-box bg-base-200 text-center">
+      <h2 id="endTitle" class="text-2xl font-bold mb-4"></h2>
+      <div id="endDetails" class="mb-4"></div>
+      <button class="btn btn-primary" onclick="playAgain()">🔄 ادامه بازی</button>
     </div>
-  </div>
+  </dialog>
 
   <!-- Game Over Modal -->
-  <div id="gameOverModal" class="modal" style="display:none">
-    <div class="modal-content game-over-modal">
-      <h2 id="gameOverTitle"></h2>
-      <div id="gameOverDetails"></div>
-      <div id="gameHistory" class="game-history"></div>
-      <button id="resetGameBtn" class="btn-reset">🔄 شروع بازی جدید</button>
+  <dialog id="gameOverModal" class="modal">
+    <div class="modal-box bg-base-200 text-center max-w-sm">
+      <h2 id="gameOverTitle" class="text-2xl font-bold mb-4"></h2>
+      <div id="gameOverDetails" class="mb-4"></div>
+      <div id="gameHistory" class="mb-4 text-sm"></div>
+      <button id="resetGameBtn" class="btn btn-primary btn-block" onclick="resetGame()">
+        🔄 شروع بازی جدید
+      </button>
     </div>
-  </div>
+  </dialog>
 
-  <div id="audioContainer" style="display:none"></div>
+  <!-- Audio Container -->
+  <div id="audioContainer" class="hidden"></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/voice.js"></script>
+  <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
