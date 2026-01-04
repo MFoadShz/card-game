@@ -1,0 +1,151 @@
+/* === Playing Cards === */
+.card {
+  font-family: "Space Grotesk", "Roboto", sans-serif;
+  background-color: var(--card-white);
+  border-radius: var(--card-radius);
+  position: absolute;
+  box-shadow: var(--shadow-card);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--transition-fast) ease, 
+              box-shadow var(--transition-fast) ease, 
+              filter var(--transition-fast);
+  overflow: hidden;
+}
+
+.card.black { color: var(--card-black); }
+.card.red { color: var(--card-red); }
+
+/* Card Corners */
+.card .corner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px;
+  position: absolute;
+  line-height: 1;
+}
+
+.card .corner-top { top: 2px; left: 2px; }
+.card .corner-bottom { bottom: 2px; right: 2px; transform: rotate(180deg); }
+
+.card .rank { font-weight: bold; font-size: 16px; }
+.card .suit-icon { font-size: 14px; margin-top: 1px; }
+
+.card .center-suit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  opacity: 0.85;
+}
+
+/* Small Cards (Played Area) */
+.card.small {
+  width: 48px !important;
+  height: 70px !important;
+  cursor: default;
+  position: relative;
+}
+
+.card.small .corner { padding: 2px; }
+.card.small .rank { font-size: 11px; }
+.card.small .suit-icon { font-size: 10px; }
+.card.small .center-suit { font-size: 22px; }
+
+/* Card Back */
+.card-back {
+  width: 28px;
+  height: 40px;
+  background: linear-gradient(135deg, #2c5aa0 0%, #1a365d 100%);
+  border: 2px solid #4a7fc7;
+  border-radius: 4px;
+  position: relative;
+}
+
+.card-back::before {
+  content: '♠';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  opacity: 0.3;
+}
+
+/* === Fan Layout (My Hand) === */
+#myHand .card {
+  position: absolute;
+  left: 50%;
+  bottom: 15px;
+  transform: translateX(-50%) rotate(var(--angle, 0deg));
+  transform-origin: center var(--fan-radius);
+  transition: transform var(--transition-fast) ease, 
+              box-shadow var(--transition-fast) ease, 
+              filter var(--transition-fast);
+}
+
+/* Hover - lifts card along its angle */
+#myHand .card:hover:not(.disabled):not(.selected):not(.dragging) {
+  transform: translateX(-50%) rotate(var(--angle, 0deg)) translateY(-20px);
+  z-index: 200 !important;
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* Selected - higher lift with gold border */
+#myHand .card.selected {
+  transform: translateX(-50%) rotate(var(--angle, 0deg)) translateY(-30px);
+  border-color: var(--gold);
+  box-shadow: var(--shadow-gold);
+  z-index: 199 !important;
+}
+
+/* Disabled */
+#myHand .card.disabled {
+  filter: grayscale(70%) brightness(0.7);
+  cursor: not-allowed;
+}
+
+#myHand .card.disabled:hover {
+  transform: translateX(-50%) rotate(var(--angle, 0deg));
+  box-shadow: var(--shadow-card);
+}
+
+/* Dragging */
+#myHand .card.dragging {
+  opacity: 0.3;
+  transform: translateX(-50%) rotate(var(--angle, 0deg));
+}
+
+/* Ghost Card (while dragging) */
+.card-ghost {
+  position: fixed !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+  opacity: 0.95;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.5) !important;
+  transition: none !important;
+  transform: rotate(-5deg) !important;
+}
+
+/* Turn Glow Effect */
+.my-turn #myHand .card:not(.disabled) {
+  animation: cardGlow 1.5s ease-in-out infinite alternate;
+}
+
+/* Played Cards */
+.played-card {
+  position: absolute;
+  transition: all var(--transition-normal) ease;
+}
+
+.played-card.pos-0 { bottom: 0; left: 50%; transform: translateX(-50%); }
+.played-card.pos-1 { right: 0; top: 50%; transform: translateY(-50%); }
+.played-card.pos-2 { top: 0; left: 50%; transform: translateX(-50%); }
+.played-card.pos-3 { left: 0; top: 50%; transform: translateY(-50%); }
+
+.played-card.winner .card {
+  animation: winPulse 0.5s ease;
+  box-shadow: 0 0 20px var(--gold);
+}

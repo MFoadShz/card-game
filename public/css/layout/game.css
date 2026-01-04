@@ -1,0 +1,433 @@
+/* === Game Layout === */
+#game {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+/* Top Bar */
+#topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+.score-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 60px;
+}
+
+.score-item.team1 { color: var(--team1); }
+.score-item.team2 { color: var(--team2); }
+
+.team-label { font-size: 10px; opacity: 0.8; }
+.score-value { font-size: 20px; font-weight: bold; }
+
+.game-info { text-align: center; font-size: 12px; }
+#contractDisplay { color: var(--gold); font-weight: bold; }
+#trumpDisplay { margin-top: 2px; }
+.score-limit-game { font-size: 10px; color: var(--gold); opacity: 0.8; }
+
+/* Voice Controls */
+#voiceControls {
+  position: fixed;
+  top: calc(50px + var(--safe-top));
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 80;
+}
+
+.voice-status {
+  font-size: 11px;
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.4);
+}
+
+.voice-status.error { color: var(--red); }
+
+.voice-indicator {
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.voice-indicator.speaking {
+  opacity: 1;
+  animation: voicePulse 0.5s infinite;
+}
+
+/* Game Log */
+#gameLog {
+  position: fixed;
+  top: 55px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  text-align: center;
+  z-index: 60;
+  max-width: 90%;
+  transition: all var(--transition-normal);
+}
+
+#gameLog:empty { display: none; }
+
+#gameLog .log-item {
+  padding: 3px 0;
+  animation: fadeIn var(--transition-normal) ease;
+}
+
+#gameLog .log-item.call { color: var(--green); }
+#gameLog .log-item.pass { color: var(--red); }
+#gameLog .log-item.info { color: var(--gold); }
+
+/* Opponents */
+.opponent {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  z-index: 5;
+  transition: opacity var(--transition-normal);
+}
+
+.game-proposing .opponent { opacity: 0.1; }
+
+.opponent-info {
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.opponent-info .card-count {
+  background: var(--bg-light);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+
+.opponent.turn .opponent-info {
+  background: rgba(255, 215, 0, 0.3);
+  border: 1px solid var(--gold);
+  animation: turnPulse 1s infinite;
+}
+
+.opponent.leader .opponent-name::after {
+  content: '👑';
+  margin-right: 4px;
+}
+
+.opponent.disconnected .opponent-info { opacity: 0.5; }
+.opponent.disconnected::after {
+  content: '📴';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 0.8em;
+}
+
+/* Opponent Positions */
+.opponent.top {
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: column;
+}
+
+.opponent.top .opponent-cards { display: flex; margin-top: 5px; }
+.opponent.top .card-back { margin: 0 -8px; }
+
+.opponent.left {
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: row;
+}
+
+.opponent.left .opponent-info {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  padding: 10px 4px;
+}
+
+.opponent.left .opponent-cards {
+  display: flex;
+  flex-direction: column;
+  margin-right: -15px;
+}
+
+.opponent.left .card-back,
+.opponent.right .card-back {
+  margin: -10px 0;
+  width: 35px;
+  height: 24px;
+}
+
+.opponent.right {
+  right: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: row-reverse;
+}
+
+.opponent.right .opponent-info {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  padding: 10px 4px;
+}
+
+.opponent.right .opponent-cards {
+  display: flex;
+  flex-direction: column;
+  margin-left: -15px;
+}
+
+/* Table Center & Drop Zone */
+#tableCenter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 85%;
+  max-width: 400px;
+  height: 60vh;
+  min-height: 200px;
+  max-height: 350px;
+}
+
+#dropZone {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  height: 85%;
+  min-height: 180px;
+  max-height: 300px;
+  border: 3px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-normal) ease;
+}
+
+.my-turn #dropZone { border-color: rgba(255, 215, 0, 0.3); }
+
+#dropZone.drag-over {
+  border-color: var(--gold);
+  background: rgba(255, 215, 0, 0.1);
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+#dropHint {
+  position: absolute;
+  font-size: 12px;
+  color: rgba(255, 215, 0, 0.5);
+  text-align: center;
+  pointer-events: none;
+}
+
+#playedCards {
+  position: relative;
+  width: 160px;
+  height: 160px;
+}
+
+#statusMessage {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  text-align: center;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+/* My Hand Area */
+#myHandArea {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: calc(5px + var(--safe-bottom));
+  z-index: 100;
+  pointer-events: none;
+}
+
+#myInfo {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 5px;
+  background: rgba(0,0,0,0.6);
+  padding: 5px 15px;
+  border-radius: 15px;
+  font-size: 14px;
+  pointer-events: auto;
+}
+
+#myName { color: var(--gold); font-weight: bold; }
+#turnIndicator { color: var(--green); }
+
+.my-turn #turnIndicator { animation: blink 1s ease-in-out infinite; }
+
+#myHand {
+  width: 100%;
+  height: 130px;
+  position: relative;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+/* Controls */
+#controls {
+  position: fixed;
+  bottom: calc(145px + var(--safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 56;
+}
+
+#controls button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+#controls button:active { transform: scale(0.95); }
+
+/* Proposal Panel */
+.proposal-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 20px;
+  width: 90%;
+  max-width: 340px;
+  z-index: 100;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.proposal-header { text-align: center; margin-bottom: 15px; }
+.proposal-header h3 { color: var(--gold); margin-bottom: 10px; }
+
+.proposal-log-mini {
+  background: var(--bg-dark);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  max-height: 60px;
+  overflow-y: auto;
+  text-align: center;
+}
+
+.proposal-log-mini:empty::before {
+  content: 'هنوز کسی پیشنهاد نداده';
+  color: #666;
+}
+
+.proposal-log-mini .log-item {
+  display: inline-block;
+  margin: 2px 5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.proposal-log-mini .log-item.call { color: var(--green); }
+.proposal-log-mini .log-item.pass { color: var(--red); }
+
+.proposal-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+/* Timer */
+.turn-timer {
+  background: rgba(0, 0, 0, 0.7);
+  padding: 5px 12px;
+  border-radius: 15px;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--green);
+  animation: timerPulse 1s infinite;
+}
+
+.turn-timer.warning {
+  color: orange;
+  animation: timerPulse 0.5s infinite;
+}
+
+.turn-timer.critical {
+  color: var(--red);
+  animation: timerPulse 0.3s infinite;
+  background: rgba(231, 76, 60, 0.3);
+}
+
+/* Countdown Display */
+.countdown-display {
+  position: fixed;
+  bottom: 200px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  padding: 20px 40px;
+  border-radius: 20px;
+  text-align: center;
+  z-index: 150;
+  border: 2px solid var(--gold);
+  animation: pulse 1s infinite;
+}
+
+.countdown-text { color: white; font-size: 14px; }
+.countdown-number { color: var(--gold); font-size: 48px; font-weight: bold; margin: 10px 0; }
+
+/* Center Cards (Dev) */
+#centerCards {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 5px;
+  z-index: 50;
+}

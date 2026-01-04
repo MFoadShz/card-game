@@ -1,0 +1,22 @@
+/* === Reset & Base Styles === */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100&family=Space+Grotesk:wght@300&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  background: var(--bg-dark);
+  color: white;
+}
+
+body {
+  background: radial-gradient(ellipse at center, #1a3a5c 0%, #0a1628 100%);
+}

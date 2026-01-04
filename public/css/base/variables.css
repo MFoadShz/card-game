@@ -1,0 +1,43 @@
+/* === CSS Variables === */
+:root {
+  /* Colors */
+  --bg-dark: #0a1628;
+  --bg-card: #1a2a44;
+  --bg-light: #243656;
+  
+  /* Accent Colors */
+  --gold: #ffd700;
+  --gold-dark: #b8960f;
+  --red: #e74c3c;
+  --green: #27ae60;
+  --blue: #3498db;
+  
+  /* Team Colors */
+  --team1: #e74c3c;
+  --team2: #3498db;
+  
+  /* Card Colors */
+  --card-white: #f5f5f5;
+  --card-red: #de4b4b;
+  --card-black: #141414;
+  
+  /* Safe Areas (for mobile) */
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+  
+  /* Sizing */
+  --card-width: 60px;
+  --card-height: 87px;
+  --card-radius: 8px;
+  --fan-radius: 350px;
+  
+  /* Timing */
+  --transition-fast: 0.15s;
+  --transition-normal: 0.3s;
+  --transition-slow: 0.5s;
+  
+  /* Shadows */
+  --shadow-card: 0px 2px 4px rgba(0,0,0,0.1), 0px 4px 8px rgba(0,0,0,0.1), 0px 8px 16px rgba(0,0,0,0.1);
+  --shadow-card-hover: 0px 10px 25px rgba(0,0,0,0.35), 0px 20px 50px rgba(0,0,0,0.2);
+  --shadow-gold: 0 0 25px var(--gold), 0 15px 35px rgba(0,0,0,0.4);
+}

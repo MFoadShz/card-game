@@ -1,0 +1,226 @@
+/* === Keyframe Animations === */
+
+/* Glow Effects */
+@keyframes cardGlow {
+  from { filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.4)); }
+  to { filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.8)); }
+}
+
+@keyframes turnPulse {
+  0%, 100% { box-shadow: 0 0 5px var(--gold); }
+  50% { box-shadow: 0 0 15px var(--gold); }
+}
+
+@keyframes timerPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Fade & Slide */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Pulse */
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.8; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Floating */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* Voice */
+@keyframes voicePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* Dots */
+@keyframes dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+}
+
+/* Spin */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Win Pulse */
+@keyframes winPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* Card Deal Animations */
+@keyframes cardDealIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) rotate(var(--angle, 0deg)) translateY(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) rotate(var(--angle, 0deg)) translateY(0);
+  }
+}
+
+@keyframes opponentCardDealIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-15px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes centerCardDealIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes cardAppear {
+  0% { 
+    opacity: 0; 
+    transform: translateX(-50%) rotate(var(--angle, 0deg)) translateY(50px) scale(0.5); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateX(-50%) rotate(var(--angle, 0deg)) translateY(0) scale(1); 
+  }
+}
+
+@keyframes cardBackAppear {
+  0% { opacity: 0; transform: scale(0.5); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Flying Card Animations */
+@keyframes flyToBottom {
+  0% { opacity: 1; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8); }
+  100% { opacity: 1; top: calc(100% - 120px); left: 50%; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes flyToTop {
+  0% { opacity: 1; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8); }
+  100% { opacity: 1; top: 60px; left: 50%; transform: translate(-50%, 0) scale(0.7); }
+}
+
+@keyframes flyToLeft {
+  0% { opacity: 1; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8); }
+  100% { opacity: 1; top: 50%; left: 30px; transform: translate(0, -50%) scale(0.7); }
+}
+
+@keyframes flyToRight {
+  0% { opacity: 1; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8); }
+  100% { opacity: 1; top: 50%; left: calc(100% - 70px); transform: translate(0, -50%) scale(0.7); }
+}
+
+/* Deal Animation Classes */
+.card.dealing,
+.card.deal-anim {
+  animation: cardAppear 0.25s ease-out forwards;
+}
+
+.card-back.dealing,
+.card-back.deal-anim {
+  animation: cardBackAppear 0.2s ease-out forwards;
+}
+
+#myHand .card.deal {
+  animation: cardDealIn 0.2s ease-out backwards;
+}
+
+.opponent-cards .card-back.deal {
+  animation: opponentCardDealIn 0.15s ease-out backwards;
+}
+
+#centerCards .card.deal {
+  animation: centerCardDealIn 0.3s ease-out backwards;
+}
+
+/* Dealing Overlay */
+.dealing-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.deck-pile {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 201;
+}
+
+.deck-card {
+  position: absolute;
+  width: 50px;
+  height: 72px;
+  background: linear-gradient(135deg, #2c5aa0 0%, #1a365d 100%);
+  border: 2px solid #4a7fc7;
+  border-radius: 6px;
+  top: 0;
+  left: 0;
+}
+
+.flying-card {
+  position: fixed;
+  width: 45px;
+  height: 65px;
+  background: linear-gradient(135deg, #2c5aa0 0%, #1a365d 100%);
+  border: 2px solid #4a7fc7;
+  border-radius: 5px;
+  z-index: 202;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.flying-card.to-bottom { animation: flyToBottom 0.3s ease-out forwards; }
+.flying-card.to-top { animation: flyToTop 0.3s ease-out forwards; }
+.flying-card.to-left { animation: flyToLeft 0.3s ease-out forwards; }
+.flying-card.to-right { animation: flyToRight 0.3s ease-out forwards; }
+
+.dealing-message {
+  position: fixed;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 15px 30px;
+  border-radius: 15px;
+  color: var(--gold);
+  font-size: 18px;
+  z-index: 210;
+  animation: pulse 1s infinite;
+}

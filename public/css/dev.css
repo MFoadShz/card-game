@@ -1,0 +1,128 @@
+/**
+ * Dev Page Specific Styles
+ */
+
+/* Dev Bar Controls */
+#devBar {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 9999;
+  display: flex;
+  gap: 8px;
+}
+
+#devBar button {
+  background: var(--primary);
+  color: var(--text);
+  border: none;
+  padding: 8px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  transition: background var(--transition-fast);
+}
+
+#devBar button:hover {
+  background: #3a6aaa;
+}
+
+/* Mode Panel Enhancements */
+#modePanel .mode-btn.active,
+#modePanel .suit-btn.active {
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+#modePanel .mode-btn,
+#modePanel .suit-btn {
+  cursor: pointer;
+}
+
+/* Center Cards (Widow/Kitty) */
+#centerCards {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 5px;
+  z-index: 50;
+}
+
+/* Dev Deal Animations */
+@keyframes devCardDealIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) rotate(var(--angle, 0deg)) translateY(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) rotate(var(--angle, 0deg)) translateY(0);
+  }
+}
+
+@keyframes devOppDealIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-15px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes devCenterDealIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+#myHand .card.deal {
+  animation: devCardDealIn 0.2s ease-out backwards;
+}
+
+.opponent-cards .card-back.deal {
+  animation: devOppDealIn 0.15s ease-out backwards;
+}
+
+#centerCards .card.deal,
+#centerCards .card-back.deal {
+  animation: devCenterDealIn 0.3s ease-out backwards;
+}
+
+/* Dev Mode Indicator */
+body::before {
+  content: 'DEV MODE';
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: #ff6b6b;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  z-index: 9999;
+  letter-spacing: 1px;
+}
+
+/* Keyboard shortcut hints */
+#devBar::after {
+  content: '(S: Start, R: Reset)';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-top: 4px;
+  white-space: nowrap;
+}

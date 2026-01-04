@@ -1,0 +1,90 @@
+/* === Responsive Styles === */
+
+/* Small Height */
+@media (max-height: 650px) {
+  #myHand {
+    height: 100px;
+  }
+  
+  #myHandArea {
+    padding-bottom: 2px;
+  }
+  
+  #controls {
+    bottom: calc(115px + var(--safe-bottom));
+  }
+  
+  #tableCenter {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .proposal-panel {
+    max-height: 55vh;
+  }
+}
+
+/* Small Width */
+@media (max-width: 500px) {
+  #tableCenter {
+    width: 85%;
+    height: 60vh;
+    min-height: 180px;
+  }
+  
+  #dropZone {
+    width: 88%;
+    height: 80%;
+    min-height: 160px;
+  }
+}
+
+/* Small Height (under 700px) */
+@media (max-height: 700px) {
+  #tableCenter {
+    height: 60vh;
+    min-height: 150px;
+  }
+  
+  #dropZone {
+    height: 75%;
+  }
+}
+
+/* Very Small Screens */
+@media (max-width: 350px) {
+  .card {
+    --card-width: 48px;
+  }
+  
+  .logo h1 {
+    font-size: 22px;
+  }
+  
+  .logo-suit {
+    font-size: 24px;
+  }
+  
+  .proposal-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Tablet & Desktop */
+@media (min-width: 768px) {
+  .lobby-container {
+    max-width: 400px;
+  }
+  
+  .modal-content {
+    max-width: 450px;
+  }
+  
+  #myHand {
+    height: 160px;
+  }
+  
+  .card {
+    --card-width: 72px;
+  }
+}
